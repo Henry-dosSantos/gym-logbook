@@ -1,19 +1,49 @@
 import { mkdirSync } from 'node:fs';
-import { expectGhost, hasFixture, open, readFixture, seed, test } from './helpers';
+import { fileURLToPath } from 'node:url';
+import type { Page } from '@playwright/test';
+import { expectGhost, hasFixture, open, openMenu, readFixture, seed, tapRow, test } from './helpers';
 
-const dir = new URL('../../screenshots/', import.meta.url);
+const dir = fileURLToPath(new URL('../../screenshots/', import.meta.url));
+
+async function shot(page: Page, name: string): Promise<void> {
+  mkdirSync(dir, { recursive: true });
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: dir + name, scale: 'css' });
+}
 
 test('screenshot: empty', async ({ page }) => {
-  mkdirSync(dir, { recursive: true });
   await open(page);
   await expectGhost(page, '11/23');
-  await page.screenshot({ path: new URL('cp2-empty.png', dir).pathname.replace(/^\/(\w:)/, '$1'), scale: 'css' });
+  await shot(page, 'empty.png');
 });
 
-test('screenshot: mid entry', async ({ page }) => {
+test.describe('with the real log', () => {
   test.skip(!hasFixture, 'fixture not present');
-  mkdirSync(dir, { recursive: true });
-  await seed(page, readFixture() + '\n\n11/23\nPush\nBench-290-4/');
-  await expectGhost(page, '270');
-  await page.screenshot({ path: new URL('cp2-mid-entry.png', dir).pathname.replace(/^\/(\w:)/, '$1'), scale: 'css' });
+
+  test('screenshot: mid entry', async ({ page }) => {
+    await seed(page, readFixture() + '\n\n11/23\nPush\nBench-290-4/');
+    await expectGhost(page, '270');
+    await shot(page, 'mid-entry.png');
+  });
+
+  test('screenshot: sheet, lint, settings', async ({ page }) => {
+    await seed(page, readFixture());
+    await openMenu(page);
+    await shot(page, 'sheet.png');
+    await tapRow(page, 'lint');
+    await shot(page, 'lint.png');
+    await page.keyboard.press('Escape');
+    await openMenu(page);
+    await tapRow(page, 'settings');
+    await shot(page, 'settings.png');
+  });
+});
+
+test('screenshot: import confirm', async ({ page }) => {
+  await open(page);
+  await openMenu(page);
+  await tapRow(page, 'import');
+  await page.locator('[data-field=import]').fill('11/23\nPush\nBench-290-4/270-5/');
+  await tapRow(page, 'replace');
+  await shot(page, 'import.png');
 });

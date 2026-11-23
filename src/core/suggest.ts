@@ -29,6 +29,11 @@ function formatWeight(set: SetEntry, weight: number | 'max'): string {
   return weight === 'max' ? 'max' : String(weight) + (set.pair ? 's' : '');
 }
 
+export function defaultTarget(sessions: Session[]): number {
+  const reps = sessions.map(s => s.sets[0]?.reps).filter((r): r is number => r !== undefined && r !== null);
+  return reps.length && median(reps) >= 8 ? 10 : 4;
+}
+
 export function suggestWeight(sessions: Session[], setNumber: number, opts: ExerciseSetting): string | null {
   const last = sessions[sessions.length - 1];
   if (!last) return null;
@@ -42,8 +47,7 @@ export function suggestWeight(sessions: Session[], setNumber: number, opts: Exer
   if (w === null) return null;
   if (w === 'max') return 'max';
   const prev = sessions[sessions.length - 2];
-  const reps = sessions.map(s => s.sets[0].reps).filter((r): r is number => r !== null);
-  const target = opts.target ?? (reps.length && median(reps) >= 8 ? 10 : 4);
+  const target = opts.target ?? defaultTarget(sessions);
   const prevFirst = prev?.sets[0];
   const progressed =
     prevFirst !== undefined &&
@@ -63,6 +67,19 @@ export function suggestWeight(sessions: Session[], setNumber: number, opts: Exer
     if (higher.length) next = Math.min(...higher);
   }
   return formatWeight(first, next);
+}
+
+export function exerciseList(
+  doc: Doc,
+  aliases: string[][],
+): { key: string; name: string; sessions: number; target: number }[] {
+  const { latest } = spellingIndex(doc, doc.entries.length, aliases);
+  const out = [];
+  for (const [key, name] of latest) {
+    const sessions = sessionsOf(doc, key, doc.entries.length, aliases, true);
+    if (sessions.length) out.push({ key, name, sessions: sessions.length, target: defaultTarget(sessions) });
+  }
+  return out.sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name));
 }
 
 function weightFor(doc: Doc, cur: Entry, key: string, setNumber: number, settings: Settings): string | null {

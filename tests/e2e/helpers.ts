@@ -22,15 +22,15 @@ export const test = base.extend({
 
 export { expect };
 
-const IDB_READ = () =>
-  new Promise<string | undefined>((resolve, reject) => {
+const IDB_READ = (key: string) =>
+  new Promise<unknown>((resolve, reject) => {
     const req = indexedDB.open('logbook', 1);
     req.onupgradeneeded = () => req.result.createObjectStore('kv');
     req.onsuccess = () => {
-      const get = req.result.transaction('kv').objectStore('kv').get('text');
+      const get = req.result.transaction('kv').objectStore('kv').get(key);
       get.onsuccess = () => {
         req.result.close();
-        resolve(get.result as string | undefined);
+        resolve(get.result);
       };
       get.onerror = () => reject(get.error);
     };
@@ -66,7 +66,10 @@ export async function seed(page: Page, text: string): Promise<void> {
   await page.locator('.cm-content').waitFor();
 }
 
-export const stored = (page: Page): Promise<string | undefined> => page.evaluate(IDB_READ);
+export const stored = (page: Page): Promise<string | undefined> =>
+  page.evaluate(IDB_READ, 'text') as Promise<string | undefined>;
+
+export const storedSettings = (page: Page): Promise<any> => page.evaluate(IDB_READ, 'settings');
 
 export async function ghost(page: Page): Promise<string | null> {
   const el = page.locator('.cm-ghost');
@@ -104,4 +107,40 @@ export async function run(page: Page, steps: [Step, string | null][]): Promise<v
       });
     }
   }
+}
+
+export async function stubClipboard(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: (t: string) => {
+          (window as unknown as { __copied: string }).__copied = t;
+          return Promise.resolve();
+        },
+      },
+    });
+  });
+}
+
+export const copied = (page: Page): Promise<string | undefined> =>
+  page.evaluate(() => (window as unknown as { __copied?: string }).__copied);
+
+export async function openMenu(page: Page): Promise<void> {
+  await page.locator('[data-action=menu]').tap();
+  await page.locator('.sheet').waitFor();
+}
+
+export async function tapRow(page: Page, action: string): Promise<void> {
+  await page.locator(`.sheet [data-action=${action}]`).tap();
+}
+
+export async function closeByScrim(page: Page): Promise<void> {
+  await page.locator('.scrim').tap({ position: { x: 10, y: 10 } });
+  await expect(page.locator('.sheet')).toHaveCount(0);
+}
+
+export async function focusEnd(page: Page): Promise<void> {
+  await page.locator('.cm-content').focus();
+  await page.keyboard.press('ControlOrMeta+End');
 }

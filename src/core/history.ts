@@ -12,12 +12,28 @@ const LOCAL_BAD: ReadonlySet<string> = new Set(['no-name', 'day-as-name', 'missi
 
 export const normName = (s: string): string => s.toLowerCase().trim().replace(/\s+/g, ' ');
 
+const keyCaches = new WeakMap<string[][], { members: Map<string, string>; names: Map<string, string> }>();
+
 export function exerciseKey(name: string, aliases: string[][]): string {
-  const n = normName(name);
-  for (const group of aliases) {
-    if (group.some(member => normName(member) === n)) return normName(group[0]);
+  let cache = keyCaches.get(aliases);
+  if (!cache) {
+    const members = new Map<string, string>();
+    for (const group of aliases) {
+      for (const member of group) {
+        const m = normName(member);
+        if (!members.has(m)) members.set(m, normName(group[0]));
+      }
+    }
+    cache = { members, names: new Map() };
+    keyCaches.set(aliases, cache);
   }
-  return n;
+  let key = cache.names.get(name);
+  if (key === undefined) {
+    const n = normName(name);
+    key = cache.members.get(n) ?? n;
+    cache.names.set(name, key);
+  }
+  return key;
 }
 
 export function countsForHistory(line: Line): boolean {
@@ -99,4 +115,19 @@ export function rankDayTypes(doc: Doc, beforeEntry: number, prevKey: string | nu
   return [...counts.keys()]
     .filter(k => counts.get(k)! >= 2 && k.startsWith(prefix))
     .sort((a, b) => (following.get(b) ?? 0) - (following.get(a) ?? 0) || lastIndex.get(b)! - lastIndex.get(a)!);
+}
+
+export function entryText(doc: Doc, pos: number): string | null {
+  if (!doc.entries.length) return null;
+  let entry = doc.entries[doc.entries.length - 1];
+  if (pos >= doc.entries[0].dateLine.from) {
+    for (let i = doc.entries.length - 1; i >= 0; i--) {
+      if (doc.entries[i].dateLine.from <= pos) {
+        entry = doc.entries[i];
+        break;
+      }
+    }
+  }
+  const last = [...entry.lines].reverse().find(l => l.kind !== 'blank')!;
+  return doc.text.slice(entry.dateLine.from, last.to);
 }
