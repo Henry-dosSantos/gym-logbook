@@ -1,0 +1,7 @@
+node_modules
+dist
+tests/fixtures/gym-2026.txt
+screenshots
+test-results
+playwright-report
+.dump
