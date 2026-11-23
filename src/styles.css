@@ -76,9 +76,21 @@ body {
   text-underline-offset: 4px;
 }
 
-.cm-ghost {
+.cm-ghost-line::after {
+  content: attr(data-ghost);
   color: rgba(242, 242, 242, 0.3);
   pointer-events: none;
+}
+
+.cm-ghost-line.cm-ghost-empty {
+  position: relative;
+}
+
+.cm-ghost-line.cm-ghost-empty::after {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: pre;
 }
 
 .cm-accepted {

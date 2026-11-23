@@ -72,8 +72,7 @@ export const stored = (page: Page): Promise<string | undefined> =>
 export const storedSettings = (page: Page): Promise<any> => page.evaluate(IDB_READ, 'settings');
 
 export async function ghost(page: Page): Promise<string | null> {
-  const el = page.locator('.cm-ghost');
-  return (await el.count()) === 0 ? null : await el.first().textContent();
+  return page.evaluate(() => document.querySelector('.cm-ghost-line')?.getAttribute('data-ghost') ?? null);
 }
 
 export async function expectGhost(page: Page, expected: string | null): Promise<void> {

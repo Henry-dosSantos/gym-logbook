@@ -8,7 +8,7 @@ Live: https://henry-dossantos.github.io/gym-logbook/
 
 1. Open the URL in Safari.
 2. Tap Share, then Add to Home Screen.
-3. Open Logbook from the Home Screen. Open the menu and tap Paste to load a log you copied (iOS asks you to confirm with its own Paste button), or paste directly into the page.
+3. Open Logbook from the Home Screen. Hold a finger on the empty page and tap Paste, or use menu, Paste, to load a log you copied.
 
 iOS gives the Home Screen app its own storage, separate from Safari, so paste your log after installing.
 

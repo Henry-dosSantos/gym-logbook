@@ -1,31 +1,20 @@
 import { Prec, StateEffect, StateField, Transaction } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
-import { Decoration, EditorView, ViewPlugin, WidgetType, keymap } from '@codemirror/view';
+import { Decoration, EditorView, ViewPlugin, keymap } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import { isolateHistory } from '@codemirror/commands';
 import { dismissGhostEffect, suggestionField } from './state';
-
-class GhostWidget extends WidgetType {
-  constructor(readonly text: string) {
-    super();
-  }
-  eq(other: GhostWidget): boolean {
-    return other.text === this.text;
-  }
-  toDOM(): HTMLElement {
-    const span = document.createElement('span');
-    span.className = 'cm-ghost';
-    span.setAttribute('aria-hidden', 'true');
-    span.textContent = this.text;
-    return span;
-  }
-}
 
 function build(view: EditorView): DecorationSet {
   const { ghost } = view.state.field(suggestionField);
   const sel = view.state.selection.main;
   if (!ghost || view.composing || !sel.empty) return Decoration.none;
-  return Decoration.set([Decoration.widget({ widget: new GhostWidget(ghost.text), side: 1 }).range(sel.head)]);
+  const line = view.state.doc.lineAt(sel.head);
+  const deco = Decoration.line({
+    attributes: { 'data-ghost': ghost.text },
+    class: line.text === '' ? 'cm-ghost-line cm-ghost-empty' : 'cm-ghost-line',
+  });
+  return Decoration.set([deco.range(line.from)]);
 }
 
 const ghostPlugin = ViewPlugin.fromClass(

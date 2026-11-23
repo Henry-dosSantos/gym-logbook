@@ -241,3 +241,74 @@ test('editor attributes and metrics', async ({ page }) => {
   });
   expect(fontOk).toBe(true);
 });
+
+test('ghost leaves the editable DOM untouched on an empty page', async ({ page }) => {
+  await open(page);
+  await expectGhost(page, '11/23');
+  const info = await page.evaluate(() => {
+    const content = document.querySelector('.cm-content')!;
+    const lines = content.querySelectorAll('.cm-line');
+    const line = lines[0] as HTMLElement;
+    const after = getComputedStyle(line, '::after');
+    const sel = getSelection()!;
+    return {
+      lines: lines.length,
+      locked: content.querySelectorAll('[contenteditable="false"]').length,
+      imgs: content.querySelectorAll('img').length,
+      ghosts: content.querySelectorAll('.cm-ghost').length,
+      children: Array.from(line.children).map(c => c.tagName),
+      height: line.getBoundingClientRect().height,
+      content: after.content,
+      color: after.color,
+      position: after.position,
+      collapsed: sel.isCollapsed,
+      anchorInLine: line.contains(sel.anchorNode),
+      offset: sel.anchorOffset,
+    };
+  });
+  expect(info.lines).toBe(1);
+  expect(info.locked).toBe(0);
+  expect(info.imgs).toBe(0);
+  expect(info.ghosts).toBe(0);
+  expect(info.children).toEqual(['BR']);
+  expect(info.height).toBeLessThanOrEqual(27);
+  expect(info.content).toBe('"11/23"');
+  expect(info.color).toBe('rgba(242, 242, 242, 0.3)');
+  expect(info.position).toBe('absolute');
+  expect(info.collapsed).toBe(true);
+  expect(info.anchorInLine).toBe(true);
+  expect(info.offset).toBe(0);
+});
+
+test.describe('ghost on a filled line', () => {
+  test.skip(!hasFixture, 'fixture not present');
+
+  test('is not part of the DOM text', async ({ page }) => {
+    await seed(page, readFixture());
+    for (const s of [...PREFIX, 'enter'] as Step[]) await act(page, s);
+    await expectGhost(page, '-290');
+    const info = await page.evaluate(() => {
+      const content = document.querySelector('.cm-content')!;
+      const line = content.querySelector('.cm-ghost-line') as HTMLElement;
+      return {
+        cls: line.className,
+        position: getComputedStyle(line, '::after').position,
+        text: line.textContent,
+        locked: content.querySelectorAll('[contenteditable="false"]').length,
+        imgs: content.querySelectorAll('img').length,
+      };
+    });
+    expect(info.cls).toContain('cm-ghost-line');
+    expect(info.cls).not.toContain('cm-ghost-empty');
+    expect(info.position).toBe('static');
+    expect(info.text).toBe('Bench');
+    expect(info.locked).toBe(0);
+    expect(info.imgs).toBe(0);
+  });
+});
+
+test('long last line raises no errors', async ({ page }) => {
+  await seed(page, 'x'.repeat(60));
+  await page.keyboard.type('y');
+  await page.waitForTimeout(300);
+});
