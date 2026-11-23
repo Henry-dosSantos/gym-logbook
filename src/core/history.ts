@@ -131,3 +131,19 @@ export function todayText(doc: Doc, today: Date): string | null {
   const last = [...entry.lines].reverse().find(l => l.kind !== 'blank')!;
   return doc.text.slice(entry.dateLine.from, last.to);
 }
+
+const tokens = (s: string): string[] => normName(s).split(/[^a-z0-9.]+/).filter(Boolean);
+
+function contains(outer: string[], inner: string[]): boolean {
+  if (!inner.length || inner.length > outer.length) return false;
+  for (let i = 0; i + inner.length <= outer.length; i++) {
+    if (inner.every((t, j) => outer[i + j] === t)) return true;
+  }
+  return false;
+}
+
+export function related(a: string, b: string): boolean {
+  const x = tokens(a);
+  const y = tokens(b);
+  return contains(x, y) || contains(y, x);
+}

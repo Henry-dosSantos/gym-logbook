@@ -129,13 +129,11 @@ export async function stubClipboard(page: Page): Promise<void> {
 export const copied = (page: Page): Promise<string | undefined> =>
   page.evaluate(() => (window as unknown as { __copied?: string }).__copied);
 
-export async function openMenu(page: Page): Promise<void> {
-  await page.locator('[data-action=menu]').tap();
-  await page.locator('.sheet').waitFor();
-}
+const SHEET_TABS = new Set(['dashboard', 'lint', 'settings']);
 
-export async function tapRow(page: Page, action: string): Promise<void> {
-  await page.locator(`.sheet [data-action=${action}]`).tap();
+export async function tapTab(page: Page, action: string): Promise<void> {
+  await page.locator(`.tabbar [data-action=${action}]`).tap();
+  if (SHEET_TABS.has(action)) await page.locator('.sheet').waitFor();
 }
 
 export async function closeByScrim(page: Page): Promise<void> {

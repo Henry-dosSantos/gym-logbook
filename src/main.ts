@@ -4,8 +4,10 @@ import './styles.css';
 import { DEFAULT_SETTINGS } from './core/settings';
 import type { Settings } from './core/types';
 import { createEditor, scrollCaretIntoView, setSettings } from './editor';
+import { parsedField } from './editor/state';
 import { platform } from './platform';
-import { createMenuButton } from './ui/menu';
+import { createBar } from './ui/bar';
+import { installTapFlash } from './ui/flash';
 import { createStrip } from './ui/strip';
 import { trackViewport } from './viewport';
 
@@ -49,13 +51,16 @@ async function boot(): Promise<void> {
     parent: editorHost,
     text,
     settings,
-    onChange: () => textSaver.schedule(),
+    onChange: () => {
+      textSaver.schedule();
+      bar.setFlagCount(view.state.field(parsedField).flags.length);
+    },
     onSuggestion: s => toolbar.setStrip(s.strip),
     onAccept: () => platform.haptic(),
     onFocus: focused => toolbar.setActive(focused),
   });
 
-  const menuButton = createMenuButton({
+  const bar = createBar({
     view,
     getSettings: () => settings,
     updateSettings(next) {
@@ -69,7 +74,9 @@ async function boot(): Promise<void> {
     flushSettings: settingsSaver.flush,
   });
 
-  app.append(editorHost, toolbar.el, menuButton);
+  bar.setFlagCount(view.state.field(parsedField).flags.length);
+  app.append(editorHost, toolbar.el, bar.el);
+  installTapFlash(app, editorHost, view);
   trackViewport(app);
   view.focus();
 

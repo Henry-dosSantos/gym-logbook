@@ -6,13 +6,12 @@ import {
   expectGhost,
   focusEnd,
   hasFixture,
-  openMenu,
   readFixture,
   run,
   seed,
   storedSettings,
   strip,
-  tapRow,
+  tapTab,
   test,
 } from './helpers';
 import type { Step } from './helpers';
@@ -22,8 +21,7 @@ const PREFIX: Step[] = ['enter', 'enter', 'enter', 'enter', 'type:P', 'enter', '
 const TOP = '.sheet .stack-page:last-child';
 
 async function openSettings(page: Page): Promise<void> {
-  await openMenu(page);
-  await tapRow(page, 'settings');
+  await tapTab(page, 'settings');
   await page.locator('[data-action=exercises]').waitFor();
 }
 

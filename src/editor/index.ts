@@ -30,7 +30,9 @@ export function createEditor(opts: {
       linesField,
       keymap.of([...defaultKeymap, ...historyKeymap]),
       EditorView.lineWrapping,
-      EditorView.scrollMargins.of(() => ({ bottom: 32 })),
+      EditorView.scrollMargins.of(() => ({
+        bottom: document.getElementById('app')?.classList.contains('kb-open') ? 32 : 104,
+      })),
       EditorView.contentAttributes.of({
         autocorrect: 'off',
         spellcheck: 'false',

@@ -1,0 +1,356 @@
+import type { Page } from '@playwright/test';
+import {
+  act,
+  closeByScrim,
+  copied,
+  expect,
+  expectGhost,
+  focusEnd,
+  hasFixture,
+  open,
+  readFixture,
+  seed,
+  setClipboard,
+  stored,
+  strip,
+  stubClipboard,
+  tapTab,
+  test,
+} from './helpers';
+
+const LAST_ENTRY =
+  '11/22\nPull\nWeighted chin ups-200-2/180-4/\nUnderhand rows-370-6/370-6/370-5/\nHammer curls-75-4/70-5/';
+
+const ACTIONS = ['dashboard', 'copy-today', 'copy-all', 'paste', 'lint', 'settings'];
+
+const FIXES: Record<number, string> = {
+  100: 'Back extensions-270-6/270-5/250-6/',
+  192: '2/8',
+  194: 'Bench-250-8/250-6/225-8/',
+  253: '2/22',
+  424: '4/1',
+  431: '4/2',
+  438: '4/6',
+  445: '4/7',
+  452: '4/9',
+  459: '4/11',
+  466: '4/13',
+  474: '4/15',
+  823: 'Calf raises-465-14/465-14/465-12/',
+  900: 'Calf raises-3x10-13/',
+  1096: '9/1',
+  1104: '9/3',
+  1372: 'Neutral pull ups-205-2/180-2/',
+  1424: 'Rdls-405-2/365-6/365-3/',
+};
+
+function withFixes(F: string, skip: number[] = []): string {
+  const lines = F.split('\n');
+  for (const [n, text] of Object.entries(FIXES)) if (!skip.includes(Number(n))) lines[Number(n) - 1] = text;
+  return lines.join('\n');
+}
+
+const TOP = '.sheet .stack-page:last-child';
+
+async function noErrorsOnSheets(page: Page, action: string): Promise<void> {
+  await tapTab(page, action);
+  await expect(page.locator('.sheet.glass')).toBeVisible();
+  const box = (await page.locator('.sheet').boundingBox())!;
+  expect(box.height).toBeGreaterThan(800);
+}
+
+test.describe('bar', () => {
+  test.beforeEach(async ({ page }) => {
+    await stubClipboard(page);
+  });
+
+  test('six tabs', async ({ page }) => {
+    await open(page);
+    const tabs = page.locator('.tabbar .tab');
+    await expect(tabs).toHaveCount(6);
+    expect(await tabs.evaluateAll(t => t.map(x => (x as HTMLElement).dataset.action))).toEqual(ACTIONS);
+    for (const tab of await tabs.all()) {
+      expect(await tab.locator('svg').count()).toBeGreaterThan(0);
+      await expect(tab.locator('.tab-label')).toBeVisible();
+      expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    await expect(page.locator('.tabbar')).toHaveClass(/glass/);
+    const filter = await page.locator('.tabbar').evaluate(e => {
+      const s = getComputedStyle(e);
+      return s.getPropertyValue('backdrop-filter') || s.getPropertyValue('-webkit-backdrop-filter');
+    });
+    expect(filter).not.toBe('none');
+    expect(filter).not.toBe('');
+    await expect(page.locator('[data-action="menu"]')).toHaveCount(0);
+  });
+
+  test('head has no status bar style meta', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveCount(0);
+  });
+
+  for (const action of ['dashboard', 'lint', 'settings']) {
+    test(`${action} sheet opens and closes`, async ({ page }) => {
+      test.skip(!hasFixture, 'fixture not present');
+      await seed(page, readFixture());
+      await noErrorsOnSheets(page, action);
+      await closeByScrim(page);
+
+      await noErrorsOnSheets(page, action);
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.sheet')).toHaveCount(0);
+
+      await noErrorsOnSheets(page, action);
+      await page.waitForTimeout(400);
+      const box = (await page.locator('.sheet').boundingBox())!;
+      const x = box.x + box.width / 2;
+      const y = box.y + 14;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      for (let i = 1; i <= 6; i++) await page.mouse.move(x, y + (box.height * 0.6 * i) / 6);
+      await page.mouse.up();
+      await expect(page.locator('.sheet')).toHaveCount(0);
+    });
+  }
+
+  test('lint badge', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await seed(page, readFixture());
+    await expect(page.locator('.tab-badge')).toHaveText('18');
+  });
+
+  test('copy day and copy all', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    const F = readFixture();
+    await seed(page, F);
+    await tapTab(page, 'copy-today');
+    expect(await copied(page)).toBe(LAST_ENTRY);
+    await expect(page.locator('.tab[data-action=copy-today]')).toHaveClass(/is-done/);
+    await expect(page.locator('.tab[data-action=copy-today]')).not.toHaveClass(/is-done/, { timeout: 2500 });
+
+    await tapTab(page, 'copy-all');
+    expect(await copied(page)).toBe(F);
+    expect(await copied(page)).toBe(await stored(page));
+  });
+
+  test('paste into an empty app', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    const F = readFixture();
+    await open(page);
+    await setClipboard(page, F);
+    await tapTab(page, 'paste');
+    await expect.poll(() => stored(page)).toBe(F);
+  });
+
+  test('paste at the cursor and undo', async ({ page }) => {
+    await seed(page, 'abc');
+    await setClipboard(page, 'XYZ');
+    await tapTab(page, 'paste');
+    await expect.poll(() => stored(page)).toBe('abcXYZ');
+    await page.locator('.cm-content').focus();
+    await page.keyboard.press('Meta+z');
+    await expect.poll(() => stored(page)).toBe('abc');
+  });
+
+  test('paste normalizes line endings', async ({ page }) => {
+    await open(page);
+    await setClipboard(page, 'A\r\nB');
+    await tapTab(page, 'paste');
+    await expect.poll(() => stored(page)).toBe('A\nB');
+  });
+
+  test('declined paste changes nothing', async ({ page }) => {
+    await seed(page, 'abc');
+    await setClipboard(page, null);
+    await tapTab(page, 'paste');
+    await page.waitForTimeout(500);
+    expect(await stored(page)).toBe('abc');
+  });
+
+  test('native paste still works', async ({ page }) => {
+    await seed(page, 'abc');
+    await page.locator('.cm-content').focus();
+    await page.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', '123');
+      document
+        .querySelector('.cm-content')!
+        .dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    });
+    await expect.poll(() => stored(page)).toBe('abc123');
+  });
+
+  test('strip sits above the bar', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await seed(page, readFixture());
+    await expect(page.locator('.strip-bar')).toBeVisible();
+    expect(await strip(page)).toHaveLength(2);
+    const stripBox = (await page.locator('.strip-bar').boundingBox())!;
+    const barBox = (await page.locator('.tabbar').boundingBox())!;
+    expect(stripBox.y + stripBox.height).toBeLessThanOrEqual(barBox.y);
+    const editor = (await page.locator('.editor').boundingBox())!;
+    expect(editor.y + editor.height).toBe(852);
+    await act(page, 'enter');
+    await act(page, 'enter');
+    await expect(page.locator('.strip-bar')).toBeHidden();
+  });
+
+  test('suggestions skip related exercises', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await page.clock.setFixedTime(new Date(2026, 10, 22, 10, 0, 0));
+    await seed(page, readFixture());
+    await focusEnd(page);
+    await act(page, 'enter');
+    await expectGhost(page, null);
+    await act(page, 'type:C');
+    await expectGhost(page, 'alf raise machine');
+  });
+
+  test('tap flash on empty space only', async ({ page }) => {
+    await open(page);
+    await page.touchscreen.tap(196, 400);
+    await expect(page.locator('.tap-flash')).toHaveCount(1);
+    await expect(page.locator('.tap-flash')).toHaveCount(0, { timeout: 1000 });
+    await act(page, 'type:a');
+    await expect.poll(() => stored(page)).toBe('a');
+  });
+
+  test('no tap flash on text', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await seed(page, readFixture());
+    const line = page.locator('.cm-line', { hasText: 'Hammer curls-75-4' }).last();
+    const box = (await line.boundingBox())!;
+    await page.touchscreen.tap(box.x + 10, box.y + box.height / 2);
+    await page.waitForTimeout(100);
+    await expect(page.locator('.tap-flash')).toHaveCount(0);
+  });
+
+  test('lint list shows fixes and applies them with Enter', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    const F = readFixture();
+    await seed(page, F);
+    await tapTab(page, 'lint');
+    await expect(page.locator('.lint-row')).toHaveCount(18);
+    const row = page.locator('.lint-row[data-line="100"]');
+    await expect(row.locator('.lint-msg')).toHaveText('Bad number');
+    await expect(row.locator('.lint-fix-text')).toHaveText(FIXES[100]);
+    await row.tap();
+    await expect(page.locator(`${TOP} .page-title`)).toHaveText('Line 100');
+    const input = page.locator(`${TOP} [data-field=fix]`);
+    await expect(input).toHaveValue(FIXES[100]);
+    await expect(input).toBeFocused();
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Enter');
+    await expect(page.locator(`${TOP} .page-title`)).toHaveText('Line 192');
+    await expect(input).toHaveValue('2/8');
+    for (let i = 0; i < 17; i++) await page.keyboard.press('Enter');
+    await expect(page.locator('.lint .empty')).toHaveText('No flags');
+    await expect(page.locator('.tab-badge')).toBeHidden();
+    await expect.poll(() => stored(page)).toBe(withFixes(F));
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.sheet')).toHaveCount(0);
+    await tapTab(page, 'lint');
+    await expect(page.locator('.lint .empty')).toHaveText('No flags');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.sheet')).toHaveCount(0);
+
+    await page.locator('.cm-content').focus();
+    await page.keyboard.press('Meta+z');
+    await expect.poll(() => stored(page)).toBe(withFixes(F, [1424]));
+    expect((await stored(page))!.split('\n')[1423]).toBe('Legs-405-2/365-6/365-3/');
+  });
+
+  test('lint edit and show in log', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    const F = readFixture();
+    await seed(page, F);
+    await tapTab(page, 'lint');
+    await page.locator('.lint-row[data-line="823"]').tap();
+    const input = page.locator(`${TOP} [data-field=fix]`);
+    await input.fill('Calf raises-465-14/465-14/465-13/');
+    await page.locator(`${TOP} [data-action=apply]`).tap();
+    await expect
+      .poll(async () => ((await stored(page)) ?? '').split('\n')[822])
+      .toBe('Calf raises-465-14/465-14/465-13/');
+
+    await expect(page.locator(`${TOP} .page-title`)).toHaveText('Line 900');
+    await page.locator(`${TOP} [data-action=back]`).tap();
+    await expect(page.locator('.lint-row')).toHaveCount(17);
+    await page.locator('.lint-row[data-line="100"]').tap();
+    await page.locator(`${TOP} [data-action=show]`).tap();
+    await expect(page.locator('.sheet')).toHaveCount(0);
+    await page.keyboard.type('X');
+    await expect
+      .poll(async () => ((await stored(page)) ?? '').split('\n')[99])
+      .toBe('Back extensions-270-6/270-5/250q-6/X');
+  });
+
+  const states = [
+    'bar only',
+    'dashboard list',
+    'dashboard detail',
+    'lint root',
+    'fix page',
+    'settings root',
+    'exercise page',
+    'merged names page',
+  ];
+  for (const state of states) {
+    test(`design guards, ${state}`, async ({ page }) => {
+      test.skip(!hasFixture, 'fixture not present');
+      await seed(page, readFixture());
+      if (state.startsWith('dashboard')) {
+        await tapTab(page, 'dashboard');
+        await page.locator('.dash-row').first().waitFor();
+      }
+      if (state === 'dashboard detail') {
+        await page.locator('.dash-row[data-key="bench"]').tap();
+        await expect(page.locator('.readout-value')).toHaveText('290');
+      }
+      if (state === 'lint root' || state === 'fix page') {
+        await tapTab(page, 'lint');
+        await page.locator('.lint-row').first().waitFor();
+      }
+      if (state === 'fix page') {
+        await page.locator('.lint-row').first().tap();
+        await page.locator('[data-field=fix]').waitFor();
+      }
+      if (state.includes('settings') || state === 'exercise page' || state === 'merged names page') {
+        await tapTab(page, 'settings');
+        await page.locator('[data-action=exercises]').waitFor();
+      }
+      if (state === 'exercise page') {
+        await page.locator('[data-action=exercises]').tap();
+        await page.locator('.nav-row[data-key="bench"]').tap();
+        await expect(page.locator('[data-footer=exercise]')).toBeVisible();
+      }
+      if (state === 'merged names page') {
+        await page.locator('[data-action=names]').tap();
+        await page.locator('[data-group="0"]').waitFor();
+      }
+      await page.waitForTimeout(500);
+      const bad = await page.evaluate(() => {
+        const found: string[] = [];
+        for (const e of Array.from(document.querySelectorAll('*'))) {
+          const s = getComputedStyle(e);
+          const filter = s.getPropertyValue('backdrop-filter') || s.getPropertyValue('-webkit-backdrop-filter');
+          const name = `${e.tagName}.${String(e.getAttribute('class'))}`;
+          if (s.boxShadow !== 'none') found.push(`${name} box-shadow ${s.boxShadow}`);
+          if (s.backgroundImage !== 'none') found.push(`${name} background-image ${s.backgroundImage}`);
+          if (filter && filter !== 'none' && !e.classList.contains('glass')) found.push(`${name} backdrop-filter ${filter}`);
+        }
+        return found;
+      });
+      expect(bad).toEqual([]);
+      const colors = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('svg *')).flatMap(e =>
+          ['fill', 'stroke'].map(a => e.getAttribute(a)).filter((v): v is string => v !== null),
+        ),
+      );
+      const allowed = new Set(['none', 'currentColor', '#F2F2F2', '#8A8A8A', '#262626', '#0A0A0A']);
+      expect(colors.filter(c => !allowed.has(c))).toEqual([]);
+      if (state === 'dashboard detail') expect(colors.length).toBeGreaterThan(0);
+    });
+  }
+});

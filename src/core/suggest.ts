@@ -7,6 +7,7 @@ import {
   latestEntryWithDayKey,
   normName,
   rankDayTypes,
+  related,
   sessionsOf,
   spellingIndex,
 } from './history';
@@ -204,6 +205,16 @@ function isActive(entry: Entry, today: Date): boolean {
   return today.getHours() < 4 && entry.month === yesterday.getMonth() + 1 && entry.day === yesterday.getDate();
 }
 
+function doneToday(cur: Entry, line: Line, aliases: string[][]): string[] {
+  return cur.lines
+    .filter(l => l !== line && countsForHistory(l))
+    .flatMap(l => [l.name!, exerciseKey(l.name!, aliases)]);
+}
+
+function excluded(done: string[], key: string, spelling: string): boolean {
+  return done.some(d => related(d, key) || related(d, spelling));
+}
+
 function emptyLineGhost(doc: Doc, cur: Entry, line: Line, settings: Settings, today: Date): Ghost | null {
   if (cur.index !== doc.entries.length - 1 || line.text !== '' || line.n === cur.dateLine.n) return null;
   if (!isActive(cur, today)) return null;
@@ -219,13 +230,12 @@ function emptyLineGhost(doc: Doc, cur: Entry, line: Line, settings: Settings, to
     }
   }
   if (!ref) return null;
-  const present = new Set(
-    cur.lines.filter(l => l !== line && countsForHistory(l)).map(l => exerciseKey(l.name!, settings.aliases)),
-  );
+  const done = doneToday(cur, line, settings.aliases);
   const { latest } = spellingIndex(doc, cur.index, settings.aliases);
   for (const l of countingLines(ref)) {
     const key = exerciseKey(l.name!, settings.aliases);
-    if (!present.has(key)) return { text: latest.get(key) ?? l.name!, kind: 'name', space: false };
+    const spelling = latest.get(key) ?? l.name!;
+    if (!excluded(done, key, spelling)) return { text: spelling, kind: 'name', space: false };
   }
   return null;
 }
@@ -241,9 +251,10 @@ function nameGhost(doc: Doc, cur: Entry, line: Line, settings: Settings): Ghost 
     return { text: w === null ? '-' : `-${w}`, kind: 'weight', space: false };
   }
   const lower = q.toLowerCase();
+  const done = doneToday(cur, line, settings.aliases);
   const candidates = recent.filter(k => {
     const s = latest.get(k)!;
-    return s.length > q.length && s.toLowerCase().startsWith(lower);
+    return s.length > q.length && s.toLowerCase().startsWith(lower) && !excluded(done, k, s);
   });
   if (!candidates.length) return null;
   const sameDay = new Set<string>();

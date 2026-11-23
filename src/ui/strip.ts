@@ -8,7 +8,7 @@ export interface Strip {
 
 export function createStrip(onShow?: () => void): Strip {
   const el = document.createElement('div');
-  el.className = 'strip-bar';
+  el.className = 'strip-bar glass';
   el.hidden = true;
   const strip = document.createElement('div');
   strip.className = 'strip';

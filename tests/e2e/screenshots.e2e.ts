@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
-import { expectGhost, hasFixture, open, openMenu, readFixture, seed, tapRow, test } from './helpers';
+import { expectGhost, hasFixture, open, readFixture, seed, tapTab, test } from './helpers';
 
 const dir = fileURLToPath(new URL('../../screenshots/', import.meta.url));
 const TOP = '.sheet .stack-page:last-child';
@@ -14,6 +14,7 @@ async function shot(page: Page, name: string): Promise<void> {
 
 test('screenshot: empty', async ({ page }) => {
   rmSync(dir + 'import.png', { force: true });
+  rmSync(dir + 'sheet.png', { force: true });
   await open(page);
   await expectGhost(page, '11/23');
   await shot(page, 'empty.png');
@@ -26,23 +27,21 @@ test.describe('with the real log', () => {
     await seed(page, readFixture() + '\n\n11/23\nPush\nBench-290-4/');
     await expectGhost(page, '270');
     await shot(page, 'mid-entry.png');
-    await openMenu(page);
-    await page.keyboard.press('Escape');
-    await page.locator('.sheet').waitFor({ state: 'detached' });
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await shot(page, 'reading.png');
   });
 
   test('screenshot: sheet, lint, settings', async ({ page }) => {
     await seed(page, readFixture());
-    await openMenu(page);
-    await shot(page, 'sheet.png');
-    await tapRow(page, 'lint');
+    await tapTab(page, 'lint');
     await shot(page, 'lint.png');
+    await page.locator('.lint-row[data-line="100"]').tap();
+    await page.locator('[data-field=fix]').waitFor();
+    await shot(page, 'lint-fix.png');
     await page.keyboard.press('Escape');
     await page.locator('.sheet').waitFor({ state: 'detached' });
 
-    await openMenu(page);
-    await tapRow(page, 'settings');
+    await tapTab(page, 'settings');
     await page.locator('[data-action=exercises]').waitFor();
     await shot(page, 'settings.png');
 
@@ -79,8 +78,7 @@ test.describe('dashboard screenshots', () => {
 
   test('screenshot: dashboard', async ({ page }) => {
     await seed(page, readFixture());
-    await openMenu(page);
-    await tapRow(page, 'dashboard');
+    await tapTab(page, 'dashboard');
     await page.locator('.dash-row').first().waitFor();
     await shot(page, 'dashboard.png');
     await page.locator('.dash-row[data-key="bench"]').tap();

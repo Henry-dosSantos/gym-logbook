@@ -6,12 +6,18 @@ export interface SheetHandle {
 export const EASE_IOS = 'cubic-bezier(0.32, 0.72, 0, 1)';
 const DURATION = 220;
 const EASING = 'cubic-bezier(0.2,0.8,0.2,1)';
-const SCRIM_OPACITY = 0.6;
+const SCRIM_OPACITY = 0.4;
 export const reduced = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let current: SheetHandle | null = null;
 
-export function openSheet(opts: { label: string; content: HTMLElement; onClose?(): void }): SheetHandle {
+export function openSheet(opts: {
+  label: string;
+  content: HTMLElement;
+  full?: boolean;
+  flush?: boolean;
+  onClose?(): void;
+}): SheetHandle {
   current?.close();
   (document.activeElement as HTMLElement | null)?.blur();
 
@@ -19,7 +25,7 @@ export function openSheet(opts: { label: string; content: HTMLElement; onClose?(
   const scrim = document.createElement('div');
   scrim.className = 'scrim';
   const sheet = document.createElement('div');
-  sheet.className = 'sheet';
+  sheet.className = opts.full ? 'sheet glass is-full' : 'sheet glass';
   sheet.setAttribute('role', 'dialog');
   sheet.setAttribute('aria-modal', 'true');
   sheet.setAttribute('aria-label', opts.label);
@@ -37,7 +43,7 @@ export function openSheet(opts: { label: string; content: HTMLElement; onClose?(
   head.append(grip, title);
 
   const body = document.createElement('div');
-  body.className = 'sheet-body';
+  body.className = opts.flush ? 'sheet-body is-flush' : 'sheet-body';
   body.append(opts.content);
   sheet.append(head, body);
   app.append(scrim, sheet);
@@ -140,4 +146,8 @@ export function openSheet(opts: { label: string; content: HTMLElement; onClose?(
   head.addEventListener('pointercancel', release);
 
   return handle;
+}
+
+export function closeSheet(): void {
+  current?.close();
 }

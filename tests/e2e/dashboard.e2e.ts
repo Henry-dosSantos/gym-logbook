@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, hasFixture, openMenu, readFixture, seed, tapRow, test } from './helpers';
+import { expect, hasFixture, readFixture, seed, tapTab, test } from './helpers';
 
 test.describe('dashboard', () => {
   test.skip(!hasFixture, 'fixture not present');
@@ -9,8 +9,7 @@ test.describe('dashboard', () => {
   });
 
   async function openDashboard(page: Page): Promise<void> {
-    await openMenu(page);
-    await tapRow(page, 'dashboard');
+    await tapTab(page, 'dashboard');
     await page.locator('.dash-row').first().waitFor();
     await page.waitForTimeout(450);
   }

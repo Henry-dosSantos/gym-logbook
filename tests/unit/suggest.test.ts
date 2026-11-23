@@ -159,9 +159,9 @@ describe.skipIf(!existsSync(fixturePath))('fixture suggestions', () => {
   });
 
   it('suggests an exercise only in an active entry', () => {
-    expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))?.text).toBe('Chin ups');
+    expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))).toBeNull();
     expect(ghostAt(F + '\n\n', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))).toBeNull();
-    expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 23, 1))?.text).toBe('Chin ups');
+    expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 23, 1))).toBeNull();
     expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 23, 4))).toBeNull();
     expect(ghostAt(F + '\n ', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))).toBeNull();
   });
