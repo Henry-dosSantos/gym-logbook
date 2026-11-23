@@ -23,6 +23,13 @@ const BENCH_STRIP = [
 test.describe('with the real log', () => {
   test.skip(!hasFixture, 'fixture not present');
 
+  test('P alternates push and pull', async ({ page }) => {
+    await seed(page, readFixture() + '\n\n11/23\nPush\nBench-290-4/\n\n11/24\n');
+    await page.locator('.cm-content').focus();
+    await page.keyboard.press('ControlOrMeta+End');
+    await run(page, [['type:P', 'ull']]);
+  });
+
   test('full new entry', async ({ page }) => {
     const F = readFixture();
     await seed(page, F);

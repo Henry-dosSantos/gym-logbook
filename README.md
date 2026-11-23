@@ -42,7 +42,7 @@ A date line starts an entry, the next line is the day type, then one exercise pe
 ## Suggestions
 
 - New entry: today's date.
-- Day line: your past day types, ranked by what usually follows the previous entry's day type.
+- Day line: your past day types, ranked by what usually follows the previous entry's day type. Typing P alternates: after a push day it suggests Pull, after a pull day Push (whichever P day was most recent).
 - Empty line in an entry: the next exercise from your last session of the same day type. Only in today's entry (or yesterday's before 4 am).
 - Weights: last session's weight for that set. Set 1 goes up when the last two sessions used the same weight for at least the target reps (odd stack weights go to the next weight you have logged).
 - The global rule (reps to hit, how much to add) lives under Settings (bar, last button), Progression. Individual exercises can have their own rule under Custom rules; Reset to default on an exercise removes its rule, and Reset all to default (with a confirm) removes every one. Merged names combines spellings into one exercise.

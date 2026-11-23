@@ -97,7 +97,29 @@ describe('rankDayTypes', () => {
 
   it('ranks by what followed the previous day type', () => {
     expect(rankDayTypes(doc, 9, 'push', '')[0]).toBe('legs');
-    expect(rankDayTypes(doc, 9, 'push', 'p')[0]).toBe('pull');
+    expect(rankDayTypes(doc, 9, 'legs', 'l')[0]).toBe('legs');
+  });
+
+  it('alternates push and pull on P', () => {
+    expect(rankDayTypes(doc, 9, 'legs', 'p')[0]).toBe('push');
+    expect(rankDayTypes(doc, 9, 'legs', 'pu')[0]).toBe('push');
+    expect(rankDayTypes(doc, 7, 'pull', 'p')[0]).toBe('pull');
+    expect(rankDayTypes(doc, 8, 'push', 'p')[0]).toBe('push');
+    expect(rankDayTypes(doc, 9, 'legs', 'pul')).toEqual(['pull']);
+  });
+
+  it('treats a longer push or pull day name as push or pull', () => {
+    const named = ['Push', 'Pull', 'Push', 'Pull', 'Push at 11 pm', 'Legs'];
+    const d = parseDoc(named.map((n, i) => `1/${i + 1}\n${n}\nBench-1-1/`).join('\n\n'));
+    expect(rankDayTypes(d, 6, 'legs', 'p')[0]).toBe('pull');
+  });
+
+  it('suggests the other one in the editor', () => {
+    const base = days.map((d, i) => `1/${i + 1}\n${d}\nBench-1-1/`).join('\n\n');
+    const afterPull = `${base}\n\n1/10\nP`;
+    expect(suggest(parseDoc(afterPull), afterPull.length, DEFAULT_SETTINGS, new Date(2026, 0, 10)).ghost?.text).toBe('ush');
+    const afterPush = `${base}\n\n1/10\nPush\nBench-1-1/\n\n1/11\nP`;
+    expect(suggest(parseDoc(afterPush), afterPush.length, DEFAULT_SETTINGS, new Date(2026, 0, 11)).ghost?.text).toBe('ull');
   });
 
   it('falls back to recency', () => {

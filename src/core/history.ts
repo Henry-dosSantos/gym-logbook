@@ -112,9 +112,29 @@ export function rankDayTypes(doc: Doc, beforeEntry: number, prevKey: string | nu
       following.set(e.dayKey, (following.get(e.dayKey) ?? 0) + 1);
     }
   }
-  return [...counts.keys()]
+  const ranked = [...counts.keys()]
     .filter(k => counts.get(k)! >= 2 && k.startsWith(prefix))
     .sort((a, b) => (following.get(b) ?? 0) - (following.get(a) ?? 0) || lastIndex.get(b)! - lastIndex.get(a)!);
+  return prefix.startsWith('p') ? alternatePushPull(doc, beforeEntry, ranked) : ranked;
+}
+
+const OPPOSITE: Record<string, string> = { push: 'pull', pull: 'push' };
+const firstWord = (key: string) => key.split(/\s+/)[0];
+
+/** After a push day the next P day is pull, and after a pull day it is push. */
+function alternatePushPull(doc: Doc, beforeEntry: number, ranked: string[]): string[] {
+  let lastP: string | null = null;
+  for (let i = Math.min(beforeEntry, doc.entries.length) - 1; i >= 0; i--) {
+    const key = doc.entries[i].dayKey;
+    if (key?.startsWith('p')) {
+      lastP = key;
+      break;
+    }
+  }
+  const want = lastP === null ? undefined : OPPOSITE[firstWord(lastP)];
+  if (!want) return ranked;
+  const pick = ranked.includes(want) ? want : ranked.find(k => firstWord(k) === want);
+  return pick === undefined ? ranked : [pick, ...ranked.filter(k => k !== pick)];
 }
 
 export function todayText(doc: Doc, today: Date): string | null {
