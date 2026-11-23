@@ -1,4 +1,6 @@
-# Logbook
+# Dossier
+
+Dossier (DOSS-ee-ay): a file of records about one subject.
 
 A workout log for the phone. The log is one plain-text document that you type; the app shows suggestions as ghost text and the weights from your last two sessions, and never rewrites what you wrote.
 
@@ -8,7 +10,9 @@ Live: https://henry-dossantos.github.io/gym-logbook/
 
 1. Open the URL in Safari.
 2. Tap Share, then Add to Home Screen.
-3. Open Logbook from the Home Screen. Hold a finger on the empty page and tap Paste, or tap Paste in the bar at the bottom, to load a log you copied.
+3. Open Dossier from the Home Screen. Hold a finger on the empty page and tap Paste, or tap Paste in the bar at the bottom, to load a log you copied.
+
+If you installed the app before it was called Dossier, iOS keeps the old name and icon until you add it again: Copy all in the bar, remove the app from the Home Screen, add it again, and paste your log back.
 
 iOS gives the Home Screen app its own storage, separate from Safari, so paste your log after installing.
 

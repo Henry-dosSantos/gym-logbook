@@ -85,6 +85,17 @@ test.describe('bar', () => {
     await expect(page.locator('[data-action="menu"]')).toHaveCount(0);
   });
 
+  test('the app is called Dossier', async ({ page }) => {
+    await open(page);
+    await expect(page).toHaveTitle('Dossier');
+    await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'Dossier');
+    const manifest = await (await page.request.get('manifest.webmanifest')).json();
+    expect([manifest.name, manifest.short_name]).toEqual(['Dossier', 'Dossier']);
+    for (const icon of ['icons/apple-touch-icon.png', ...manifest.icons.map((i: { src: string }) => i.src)]) {
+      expect((await page.request.get(icon)).status()).toBe(200);
+    }
+  });
+
   test('text scrolls behind the top inset', async ({ page }) => {
     await open(page);
     await expect(page.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveAttribute(

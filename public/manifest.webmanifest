@@ -1,6 +1,6 @@
 {
-  "name": "Logbook",
-  "short_name": "Logbook",
+  "name": "Dossier",
+  "short_name": "Dossier",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
