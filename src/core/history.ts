@@ -115,26 +115,44 @@ export function rankDayTypes(doc: Doc, beforeEntry: number, prevKey: string | nu
   const ranked = [...counts.keys()]
     .filter(k => counts.get(k)! >= 2 && k.startsWith(prefix))
     .sort((a, b) => (following.get(b) ?? 0) - (following.get(a) ?? 0) || lastIndex.get(b)! - lastIndex.get(a)!);
-  return prefix.startsWith('p') ? alternatePushPull(doc, beforeEntry, ranked) : ranked;
+  const next = nextInRotation(doc, beforeEntry, prefix);
+  return next === null ? ranked : [next, ...ranked.filter(k => k !== next)];
 }
 
-const OPPOSITE: Record<string, string> = { push: 'pull', pull: 'push' };
-const firstWord = (key: string) => key.split(/\s+/)[0];
+const ROTATION_WINDOW = 15;
 
-/** After a push day the next P day is pull, and after a pull day it is push. */
-function alternatePushPull(doc: Doc, beforeEntry: number, ranked: string[]): string[] {
-  let lastP: string | null = null;
-  for (let i = Math.min(beforeEntry, doc.entries.length) - 1; i >= 0; i--) {
+/**
+ * The day type in the current rotation that was done longest ago, assumed to be today's.
+ * The rotation is the day types of the last 15 entries; variants count as their base word
+ * ("heavy push" and "push at 11 pm" are push). Once there are 15 entries, a type seen only
+ * once in them is a one-off and left out.
+ */
+export function nextInRotation(doc: Doc, beforeEntry: number, prefix: string): string | null {
+  const base = new Set([...dayKeyCounts(doc, beforeEntry).keys()].filter(k => !/\s/.test(k)));
+  const familyOf = (key: string) => key.split(/\s+/).find(w => base.has(w)) ?? null;
+  const seen = new Map<string, { count: number; last: number }>();
+  let window = 0;
+  for (let i = Math.min(beforeEntry, doc.entries.length) - 1; i >= 0 && window < ROTATION_WINDOW; i--) {
     const key = doc.entries[i].dayKey;
-    if (key?.startsWith('p')) {
-      lastP = key;
-      break;
+    if (!key) continue;
+    window++;
+    const family = familyOf(key);
+    if (family === null) continue;
+    const f = seen.get(family);
+    if (f) f.count++;
+    else seen.set(family, { count: 1, last: i });
+  }
+  const minCount = window >= ROTATION_WINDOW ? 2 : 1;
+  let pick: string | null = null;
+  let oldest = Infinity;
+  for (const [family, { count, last }] of seen) {
+    if (count < minCount || !family.startsWith(prefix)) continue;
+    if (last < oldest) {
+      oldest = last;
+      pick = family;
     }
   }
-  const want = lastP === null ? undefined : OPPOSITE[firstWord(lastP)];
-  if (!want) return ranked;
-  const pick = ranked.includes(want) ? want : ranked.find(k => firstWord(k) === want);
-  return pick === undefined ? ranked : [pick, ...ranked.filter(k => k !== pick)];
+  return pick;
 }
 
 export function todayText(doc: Doc, today: Date): string | null {

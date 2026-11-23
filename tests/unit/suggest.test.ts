@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDoc } from '../../src/core/parse';
 import { DEFAULT_SETTINGS } from '../../src/core/settings';
+import { nextInRotation } from '../../src/core/history';
 import { rankDayTypes, suggest } from '../../src/core/suggest';
 import type { Settings } from '../../src/core/types';
 
@@ -91,39 +92,44 @@ describe('global rule', () => {
   });
 });
 
-describe('rankDayTypes', () => {
+describe('day type prediction', () => {
+  const log = (names: string[]) => names.map((d, i) => `1/${i + 1}\n${d}\nBench-1-1/`).join('\n\n');
   const days = ['Push', 'Legs', 'Pull', 'Push', 'Legs', 'Pull', 'Push', 'Pull', 'Legs'];
-  const doc = parseDoc(days.map((d, i) => `1/${i + 1}\n${d}\nBench-1-1/`).join('\n\n'));
+  const doc = parseDoc(log(days));
+  const dayGhost = (names: string[], typed = '') => {
+    const text = `${log(names)}\n\n2/1\n${typed}`;
+    return suggest(parseDoc(text), text.length, DEFAULT_SETTINGS, new Date(2026, 1, 1)).ghost?.text ?? null;
+  };
 
-  it('ranks by what followed the previous day type', () => {
-    expect(rankDayTypes(doc, 9, 'push', '')[0]).toBe('legs');
-    expect(rankDayTypes(doc, 9, 'legs', 'l')[0]).toBe('legs');
+  it('predicts the day type done longest ago', () => {
+    expect(dayGhost(['Push', 'Pull', 'Legs'])).toBe('Push');
+    expect(dayGhost(['Push', 'Pull', 'Legs', 'Push'])).toBe('Pull');
+    expect(nextInRotation(doc, 9, '')).toBe('push');
+    expect(rankDayTypes(doc, 9, 'legs', '')[0]).toBe('push');
   });
 
-  it('alternates push and pull on P', () => {
-    expect(rankDayTypes(doc, 9, 'legs', 'p')[0]).toBe('push');
-    expect(rankDayTypes(doc, 9, 'legs', 'pu')[0]).toBe('push');
+  it('narrows to what is typed', () => {
+    expect(dayGhost(['Push', 'Pull', 'Legs', 'Push'], 'P')).toBe('ull');
+    expect(dayGhost(['Push', 'Legs', 'Pull'], 'P')).toBe('ush');
+    expect(dayGhost(['Push', 'Pull', 'Legs', 'Push'], 'L')).toBe('egs');
     expect(rankDayTypes(doc, 7, 'pull', 'p')[0]).toBe('pull');
     expect(rankDayTypes(doc, 8, 'push', 'p')[0]).toBe('push');
     expect(rankDayTypes(doc, 9, 'legs', 'pul')).toEqual(['pull']);
   });
 
-  it('treats a longer push or pull day name as push or pull', () => {
-    const named = ['Push', 'Pull', 'Push', 'Pull', 'Push at 11 pm', 'Legs'];
-    const d = parseDoc(named.map((n, i) => `1/${i + 1}\n${n}\nBench-1-1/`).join('\n\n'));
-    expect(rankDayTypes(d, 6, 'legs', 'p')[0]).toBe('pull');
+  it('counts variants as their base day type', () => {
+    expect(nextInRotation(parseDoc(log(['Push', 'Pull', 'Push', 'Pull', 'Push at 11 pm', 'Legs'])), 6, 'p')).toBe('pull');
+    expect(nextInRotation(parseDoc(log(['Push', 'Pull', 'Legs', 'Heavy push', 'Pull at home'])), 5, '')).toBe('legs');
   });
 
-  it('suggests the other one in the editor', () => {
-    const base = days.map((d, i) => `1/${i + 1}\n${d}\nBench-1-1/`).join('\n\n');
-    const afterPull = `${base}\n\n1/10\nP`;
-    expect(suggest(parseDoc(afterPull), afterPull.length, DEFAULT_SETTINGS, new Date(2026, 0, 10)).ghost?.text).toBe('ush');
-    const afterPush = `${base}\n\n1/10\nPush\nBench-1-1/\n\n1/11\nP`;
-    expect(suggest(parseDoc(afterPush), afterPush.length, DEFAULT_SETTINGS, new Date(2026, 0, 11)).ghost?.text).toBe('ull');
+  it('leaves out one-offs once the rotation is full', () => {
+    const names = ['Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs', 'Bjj', 'Push', 'Pull', 'Legs', 'Push', 'Pull'];
+    expect(nextInRotation(parseDoc(log(names)), names.length, '')).toBe('legs');
+    expect(nextInRotation(parseDoc(log(['Push', 'Bjj', 'Pull'])), 3, '')).toBe('push');
   });
 
-  it('falls back to recency', () => {
-    expect(rankDayTypes(doc, 9, null, '')[0]).toBe('legs');
+  it('shows nothing on a blank log', () => {
+    expect(nextInRotation(parseDoc(''), 0, '')).toBeNull();
   });
 });
 
@@ -143,7 +149,7 @@ describe.skipIf(!existsSync(fixturePath))('fixture suggestions', () => {
     [F + '\n\n', ['11/23', 'date', false]],
     [F + '\n\n1', ['1/23', 'date', false]],
     [F + '\n\n11/23', null],
-    [F + '\n\n11/23\n', null],
+    [F + '\n\n11/23\n', ['Legs', 'day', false]],
     [F + '\n\n11/23\nP', ['ush', 'day', false]],
     [F + '\n\n11/23\nPush', null],
     [B, ['Bench', 'name', false]],

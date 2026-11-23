@@ -23,11 +23,17 @@ const BENCH_STRIP = [
 test.describe('with the real log', () => {
   test.skip(!hasFixture, 'fixture not present');
 
-  test('P alternates push and pull', async ({ page }) => {
-    await seed(page, readFixture() + '\n\n11/23\nPush\nBench-290-4/\n\n11/24\n');
+  test('day line predicts the day type done longest ago', async ({ page }) => {
+    await seed(page, readFixture() + '\n\n11/23\nLegs\nLeg curls-245-4/\n\n11/24\n');
     await page.locator('.cm-content').focus();
     await page.keyboard.press('ControlOrMeta+End');
-    await run(page, [['type:P', 'ull']]);
+    await expectGhost(page, 'Push');
+    await run(page, [
+      ['type:L', 'egs'],
+      ['backspace', 'Push'],
+      ['enter', null],
+    ]);
+    await expect.poll(async () => ((await stored(page)) ?? '').split('\n').slice(-2)).toEqual(['11/24', 'Push']);
   });
 
   test('full new entry', async ({ page }) => {
@@ -43,7 +49,7 @@ test.describe('with the real log', () => {
       ['enter', null],
       ['enter', '11/23'],
       ['enter', null],
-      ['enter', null],
+      ['enter', 'Legs'],
       ['type:P', 'ush'],
       ['enter', null],
       ['enter', 'Bench'],

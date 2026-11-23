@@ -42,7 +42,7 @@ A date line starts an entry, the next line is the day type, then one exercise pe
 ## Suggestions
 
 - New entry: today's date.
-- Day line: your past day types, ranked by what usually follows the previous entry's day type. Typing P alternates: after a push day it suggests Pull, after a pull day Push (whichever P day was most recent).
+- Day line: the day type in your rotation that you did longest ago, shown as soon as the line is empty (after Push, Pull, Legs it suggests Push; after Push, Pull, Legs, Push it suggests Pull). The rotation is the day types of your last 15 entries; variants count as their base word (Heavy push and Push at 11 pm are Push), and once there are 15 entries a type seen only once among them is a one-off and left out. Typing narrows it: P picks whichever of Push and Pull is older.
 - Empty line in an entry: the next exercise from your last session of the same day type. Only in today's entry (or yesterday's before 4 am).
 - Weights: last session's weight for that set. Set 1 goes up when the last two sessions used the same weight for at least the target reps (odd stack weights go to the next weight you have logged).
 - The global rule (reps to hit, how much to add) lives under Settings (bar, last button), Progression. Individual exercises can have their own rule under Custom rules; Reset to default on an exercise removes its rule, and Reset all to default (with a confirm) removes every one. Merged names combines spellings into one exercise.

@@ -183,7 +183,7 @@ type DayResult = { ghost: Ghost | null } | null;
 
 function dayGhost(doc: Doc, cur: Entry, line: Line): DayResult {
   const t = line.text;
-  if (cur.dateLine.rest !== '' || line.n !== cur.dateLine.n + 1 || !t.trim() || line.kind === 'exercise') return null;
+  if (cur.dateLine.rest !== '' || line.n !== cur.dateLine.n + 1 || (t !== '' && !t.trim()) || line.kind === 'exercise') return null;
   const p = t.replace(/^\s+/, '').toLowerCase();
   if (dayKeyCounts(doc, cur.index).has(p)) return { ghost: null };
   const prevKey = cur.index > 0 ? doc.entries[cur.index - 1].dayKey : null;
