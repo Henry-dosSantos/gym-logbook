@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '../../src/core/settings';
 import { rankDayTypes, suggest } from '../../src/core/suggest';
 import type { Settings } from '../../src/core/types';
 
-const TODAY = new Date(2026, 10, 23);
+const TODAY = new Date(2026, 10, 23, 10);
 
 function ghostAt(text: string, settings: Settings = DEFAULT_SETTINGS, today = TODAY) {
   return suggest(parseDoc(text), text.length, settings, today).ghost;
@@ -24,10 +24,15 @@ describe('weight progression', () => {
     [['Bench-295-4/', 'Bench-300-4/'], '-300'],
     [['X-max-8/', 'X-max-9/'], '-max'],
     [['Calf raises-410-10/', 'Calf raises-410-11/'], '-415'],
-    [['Calf raises-410-10/', 'Calf raises-410-9/'], '-410'],
+    [['Calf raises-410-10/', 'Calf raises-410-9/'], '-415'],
     [['Calf raises-410-5/', 'Calf raises-410-6/'], '-415'],
     [['X-84-6/', 'X-92.5-3/', 'X-91-5/', 'X-91-5/'], '-92.5'],
     [['Bench-300-4/', 'Bench-300-5/', 'Bench-3x5/'], '-305'],
+    [['X-190-3/', 'X-180-4/', 'X-180-4/'], '-185'],
+    [['X-84-5/', 'X-91-3/', 'X-84-5/', 'X-84-5/'], '-91'],
+    [['Sit ups-45-8/', 'Sit ups-45-8/'], '-50'],
+    [['X-45-4/', 'X-45-3/'], '-45'],
+    [['X-402.5-10/', 'X-402.5-10/'], '-407.5'],
   ])('%j', (sessions, expected) => {
     const name = sessions[0].split('-')[0];
     expect(ghostText(sessionsDoc(sessions, name))).toBe(expected);
@@ -80,7 +85,7 @@ describe.skipIf(!existsSync(fixturePath))('fixture suggestions', () => {
   };
 
   it.each([
-    [F + '\n', ['Chin ups', 'name', false]],
+    [F + '\n', null],
     [F + '\n\n', ['11/23', 'date', false]],
     [F + '\n\n1', ['1/23', 'date', false]],
     [F + '\n\n11/23', null],
@@ -121,8 +126,11 @@ describe.skipIf(!existsSync(fixturePath))('fixture suggestions', () => {
     expect(g(text)).toEqual(expected);
   });
 
-  it('suggests an exercise when today already has an entry', () => {
-    expect(ghostAt(F + '\n\n', DEFAULT_SETTINGS, new Date(2026, 10, 22))?.text).toBe('Chin ups');
+  it('suggests an exercise only in an active entry', () => {
+    expect(ghostAt(F + '\n\n', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))?.text).toBe('Chin ups');
+    expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 23, 1))?.text).toBe('Chin ups');
+    expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 23, 4))).toBeNull();
+    expect(ghostAt(F + '\n ', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))).toBeNull();
   });
 
   it('ranks day types', () => {

@@ -67,8 +67,8 @@ export function settingsView(ctx: AppContext): HTMLElement {
     const row = el('div', 'ex-row');
     row.append(
       el('span', 'ex-name', item.name),
-      makeInput('target', item.key, String(item.target)),
-      makeInput('increment', item.key, 'auto'),
+      makeInput('target', item.key, '4'),
+      makeInput('increment', item.key, '5'),
     );
     root.append(row);
   }

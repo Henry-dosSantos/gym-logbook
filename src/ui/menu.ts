@@ -9,6 +9,7 @@ import { button, el, icon } from './dom';
 import { pressable } from './press';
 import { openSheet } from './sheet';
 import type { SheetHandle } from './sheet';
+import { dashboardView } from './dashboard';
 import { settingsView } from './settings-view';
 import type { AppContext } from './settings-view';
 
@@ -107,6 +108,12 @@ function openMenu(ctx: AppContext): void {
     content.append(b);
   };
 
+  row('dashboard', 'Dashboard', () =>
+    sheet.setContent('Dashboard', dashboardView(view.state.field(parsedField), ctx.getSettings().aliases), {
+      full: true,
+      flush: true,
+    }),
+  );
   row('copy-all', 'Copy all', () => {
     platform.copy(view.state.doc.toString());
     ctx.flushText();

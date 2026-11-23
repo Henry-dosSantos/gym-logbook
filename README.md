@@ -12,6 +12,8 @@ Live: https://henry-dossantos.github.io/gym-logbook/
 
 iOS gives the Home Screen app its own storage, separate from Safari. Import your log after installing: menu, Import, paste, Replace.
 
+The bar iOS shows above the keyboard (arrows and a checkmark) belongs to Safari; web apps cannot hide it. A native wrapper can (Capacitor: Keyboard.setAccessoryBarVisible).
+
 ## Log format
 
 ```
@@ -30,16 +32,16 @@ A date line starts an entry, the next line is the day type, then one exercise pe
 ## Keys
 
 - Enter accepts the ghost text, otherwise inserts a new line.
-- Space accepts the ghost text while typing numbers, otherwise types a space.
-- The bar has `-`, `/`, Accept and a new line button. New line never accepts.
+- Space accepts while typing numbers, otherwise types a space.
+- Typing anything else that does not match hides the suggestion. A space on an empty line dismisses the next-exercise suggestion.
 
 ## Suggestions
 
 - New entry: today's date.
 - Day line: your past day types, ranked by what usually follows the previous entry's day type.
-- Empty line in an entry: the next exercise from your last session of the same day type.
-- Weights: last session's weight for that set. Set 1 goes up when the last two sessions used the same weight and both hit the target reps.
-- Target reps, increments and aliases are editable under menu, Settings.
+- Empty line in an entry: the next exercise from your last session of the same day type. Only in today's entry (or yesterday's before 4 am).
+- Weights: last session's weight for that set. Set 1 goes up 5 lb when the last two sessions used the same weight for at least 4 reps (odd stack weights go to the next weight you have logged).
+- Target reps, increment and aliases are editable under menu, Settings.
 
 ## Backup
 
@@ -48,6 +50,10 @@ The log lives only on the device, in IndexedDB. Use menu, Copy all or Export to 
 ## Lint
 
 Menu, Lint lists lines the parser could not make sense of (dates out of order, a wrong year, sets with no exercise name, a missing dash, a bad number). Tap one to jump to it. Nothing is ever fixed automatically.
+
+## Dashboard
+
+Menu, Dashboard lists every exercise with a small trend line. Tap one for the full chart of top-set weight or reps per session; drag across the chart to read any session.
 
 ## Platform adapter
 

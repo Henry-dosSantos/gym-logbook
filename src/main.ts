@@ -6,7 +6,7 @@ import type { Settings } from './core/types';
 import { createEditor, setSettings } from './editor';
 import { platform } from './platform';
 import { createMenuButton } from './ui/menu';
-import { createToolbar } from './ui/toolbar';
+import { createStrip } from './ui/strip';
 import { trackViewport } from './viewport';
 
 const SAVE_DELAY = 300;
@@ -44,7 +44,7 @@ async function boot(): Promise<void> {
   const textSaver = debounced(() => void platform.save('text', view.state.doc.toString()).catch(() => undefined));
   const settingsSaver = debounced(() => void platform.save('settings', settings).catch(() => undefined));
 
-  const toolbar = createToolbar(() => view);
+  const toolbar = createStrip();
   const view = createEditor({
     parent: editorHost,
     text,

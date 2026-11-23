@@ -13,6 +13,7 @@ test('works offline after the first load', async ({ page, context }) => {
   await page.reload();
   await page.locator('.cm-content').waitFor();
   expect(await stored(page)).toBe(F);
-  await page.locator('[data-action=newline]').tap();
-  await expectGhost(page, 'Chin ups');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expectGhost(page, '11/23');
 });

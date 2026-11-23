@@ -3,15 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { entryText } from '../../src/core/history';
 import { parseDoc } from '../../src/core/parse';
 import { DEFAULT_SETTINGS } from '../../src/core/settings';
-import { defaultTarget, exerciseList } from '../../src/core/suggest';
-import type { Session } from '../../src/core/history';
+import { exerciseList } from '../../src/core/suggest';
 import { exportFiles } from '../../src/export';
 
 const fixturePath = new URL('../fixtures/gym-2026.txt', import.meta.url);
 const hasFixture = existsSync(fixturePath);
-
-const sessionWith = (reps: (number | null)[]): Session[] =>
-  reps.map(r => ({ entry: null as never, sets: [{ weight: 100, pair: false, reps: r, seconds: null }], setsText: '' }));
 
 describe('exportFiles', () => {
   it('names and types the files', () => {
@@ -56,21 +52,12 @@ describe('entryText', () => {
   });
 });
 
-describe('defaultTarget', () => {
-  it('uses the median of set-one reps', () => {
-    expect(defaultTarget(sessionWith([8, 8, 8]))).toBe(10);
-    expect(defaultTarget(sessionWith([7, 8]))).toBe(4);
-    expect(defaultTarget(sessionWith([null]))).toBe(4);
-    expect(defaultTarget([])).toBe(4);
-  });
-});
-
 describe.skipIf(!hasFixture)('exerciseList', () => {
   const list = exerciseList(parseDoc(hasFixture ? readFileSync(fixturePath, 'utf8') : ''), DEFAULT_SETTINGS.aliases);
 
   it('lists usable exercises', () => {
-    expect(list).toContainEqual({ key: 'bench', name: 'Bench', sessions: 59, target: 4 });
-    expect(list).toContainEqual({ key: 'calf raises', name: 'Calf raises', sessions: 35, target: 10 });
+    expect(list).toContainEqual({ key: 'bench', name: 'Bench', sessions: 59 });
+    expect(list).toContainEqual({ key: 'calf raises', name: 'Calf raises', sessions: 35 });
     expect(list.some(x => x.key === 'lat pull downs')).toBe(false);
     expect(list[0].key).toBe('bench');
   });

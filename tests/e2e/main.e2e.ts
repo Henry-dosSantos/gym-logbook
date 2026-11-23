@@ -13,6 +13,8 @@ import {
 } from './helpers';
 import type { Step } from './helpers';
 
+const PREFIX: Step[] = ['enter', 'enter', 'enter', 'enter', 'type:P', 'enter', 'enter'];
+
 const BENCH_STRIP = [
   ['11/21', '290-3/270-5/245-9'],
   ['11/13', '290-3/265-6'],
@@ -31,8 +33,8 @@ test.describe('with the real log', () => {
     ]);
 
     const steps: [Step, string | null][] = [
-      ['tap:newline', 'Chin ups'],
-      ['tap:newline', '11/23'],
+      ['enter', null],
+      ['enter', '11/23'],
       ['enter', null],
       ['enter', null],
       ['type:P', 'ush'],
@@ -45,17 +47,17 @@ test.describe('with the real log', () => {
 
     await run(page, [
       ['enter', '-'],
-      ['tap:dash', null],
+      ['type:-', null],
       ['type:4', '/'],
       ['space', '270'],
       ['space', '-'],
       ['space', null],
       ['type:5', '/'],
-      ['tap:slash', '245'],
+      ['type:/', '245'],
       ['enter', '-'],
       ['enter', null],
       ['type:9', '/'],
-      ['tap:accept', null],
+      ['enter', null],
 
       ['enter', 'Incline db'],
       ['enter', '-105'],
@@ -104,9 +106,7 @@ test.describe('with the real log', () => {
   test('undo removes only the acceptance', async ({ page }) => {
     const F = readFixture();
     await seed(page, F);
-    for (const s of ['tap:newline', 'tap:newline', 'enter', 'enter', 'type:P', 'enter', 'enter', 'enter'] as Step[]) {
-      await act(page, s);
-    }
+    for (const s of [...PREFIX, 'enter'] as Step[]) await act(page, s);
     await expect.poll(() => stored(page)).toBe(F + '\n\n11/23\nPush\nBench');
     await page.keyboard.press('ControlOrMeta+z');
     await expect.poll(() => stored(page)).toBe(F + '\n\n11/23\nPush\n');
@@ -116,27 +116,35 @@ test.describe('with the real log', () => {
   });
 
   test('ghost details', async ({ page }) => {
-    const base = readFixture() + '\n\n11/23\nPush\n';
-    await seed(page, base);
-    await expectGhost(page, 'Bench');
+    const F = readFixture();
+    const base = F + '\n\n11/23\nPush\n';
+    const toPrefix = async () => {
+      await seed(page, F);
+      for (const s of PREFIX) await act(page, s);
+      await expectGhost(page, 'Bench');
+    };
+
+    await toPrefix();
     await run(page, [
       ['type:X', null],
       ['backspace', 'Bench'],
     ]);
-    await page.locator('[data-action=newline]').tap();
-    await expect.poll(() => stored(page)).toBe(base + '\n');
 
-    await seed(page, base);
+    await toPrefix();
+    await run(page, [['space', null]]);
+    await expect.poll(() => stored(page)).toBe(base + ' ');
+    await run(page, [['backspace', 'Bench']]);
+
+    await toPrefix();
     await run(page, [['enter', '-290']]);
     await act(page, 'space');
     await expect.poll(() => stored(page)).toBe(base + 'Bench ');
 
-    await seed(page, base);
+    await toPrefix();
     await run(page, [
       ['type:Be', 'nch'],
       ['type:n', 'ch'],
-      ['type:c', 'h'],
-      ['type:h', '-290'],
+      ['type:ch', '-290'],
     ]);
   });
 });
@@ -174,9 +182,10 @@ test('editor attributes and metrics', async ({ page }) => {
   expect(style.family.replace(/["']/g, '')).toMatch(/^IBM Plex Mono/);
   expect(await page.locator('.cm-gutters').count()).toBe(0);
   expect(await page.locator('.cm-activeLine').count()).toBe(0);
-  for (const b of await page.locator('.btn').all()) {
-    expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  for (const action of ['dash', 'slash', 'accept', 'newline']) {
+    expect(await page.locator(`[data-action="${action}"]`).count()).toBe(0);
   }
+  expect(await page.locator('.strip').count()).toBe(1);
   const fontOk = await page.evaluate(async () => {
     await document.fonts.load('17px "IBM Plex Mono"');
     await document.fonts.ready;

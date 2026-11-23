@@ -15,23 +15,13 @@ import type { Doc, Entry, ExerciseSetting, Ghost, Line, SetEntry, Settings, Stri
 
 export { rankDayTypes };
 
+const DEFAULT_TARGET = 4;
 const WEIGHT_TOKEN = /^\d+(\.\d+)?s?$/;
 const WEIGHT_OR_MAX = /^(?:\d+(?:\.\d+)?s?|max)$/i;
 const WEIGHT_AND_REPS = /^(?:\d+(?:\.\d+)?s?|max)-\d+(?:\.\d+)?s?$/i;
 
-function median(values: number[]): number {
-  const s = [...values].sort((a, b) => a - b);
-  const mid = s.length >> 1;
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
-
 function formatWeight(set: SetEntry, weight: number | 'max'): string {
   return weight === 'max' ? 'max' : String(weight) + (set.pair ? 's' : '');
-}
-
-export function defaultTarget(sessions: Session[]): number {
-  const reps = sessions.map(s => s.sets[0]?.reps).filter((r): r is number => r !== undefined && r !== null);
-  return reps.length && median(reps) >= 8 ? 10 : 4;
 }
 
 export function suggestWeight(sessions: Session[], setNumber: number, opts: ExerciseSetting): string | null {
@@ -47,7 +37,7 @@ export function suggestWeight(sessions: Session[], setNumber: number, opts: Exer
   if (w === null) return null;
   if (w === 'max') return 'max';
   const prev = sessions[sessions.length - 2];
-  const target = opts.target ?? defaultTarget(sessions);
+  const target = opts.target ?? DEFAULT_TARGET;
   const prevFirst = prev?.sets[0];
   const progressed =
     prevFirst !== undefined &&
@@ -59,7 +49,7 @@ export function suggestWeight(sessions: Session[], setNumber: number, opts: Exer
   if (!progressed) return formatWeight(first, w);
   let next = w + 5;
   if (opts.increment !== undefined) next = w + opts.increment;
-  else {
+  else if (w % 5 !== 0) {
     const higher = sessions
       .flatMap(s => s.sets)
       .map(s => s.weight)
@@ -72,12 +62,12 @@ export function suggestWeight(sessions: Session[], setNumber: number, opts: Exer
 export function exerciseList(
   doc: Doc,
   aliases: string[][],
-): { key: string; name: string; sessions: number; target: number }[] {
+): { key: string; name: string; sessions: number }[] {
   const { latest } = spellingIndex(doc, doc.entries.length, aliases);
   const out = [];
   for (const [key, name] of latest) {
     const sessions = sessionsOf(doc, key, doc.entries.length, aliases, true);
-    if (sessions.length) out.push({ key, name, sessions: sessions.length, target: defaultTarget(sessions) });
+    if (sessions.length) out.push({ key, name, sessions: sessions.length });
   }
   return out.sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name));
 }
@@ -201,8 +191,16 @@ function dayGhost(doc: Doc, cur: Entry, line: Line): DayResult {
   return { ghost: null };
 }
 
-function emptyLineGhost(doc: Doc, cur: Entry, line: Line, settings: Settings): Ghost | null {
-  if (cur.index !== doc.entries.length - 1 || line.text.trim() !== '' || line.n === cur.dateLine.n) return null;
+function isActive(entry: Entry, today: Date): boolean {
+  if (entry.month === today.getMonth() + 1 && entry.day === today.getDate()) return true;
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  return today.getHours() < 4 && entry.month === yesterday.getMonth() + 1 && entry.day === yesterday.getDate();
+}
+
+function emptyLineGhost(doc: Doc, cur: Entry, line: Line, settings: Settings, today: Date): Ghost | null {
+  if (cur.index !== doc.entries.length - 1 || line.text !== '' || line.n === cur.dateLine.n) return null;
+  if (!isActive(cur, today)) return null;
   if (cur.dateLine.rest === '' && line.n === cur.dateLine.n + 1) return null;
   if (cur.dayKey === null) return null;
   let ref: Entry | null = null;
@@ -266,7 +264,7 @@ export function suggest(doc: Doc, pos: number, settings: Settings, today: Date):
   const day = dayGhost(doc, cur, line);
   if (day) return { ghost: day.ghost, strip };
 
-  const empty = emptyLineGhost(doc, cur, line, settings);
+  const empty = emptyLineGhost(doc, cur, line, settings, today);
   if (empty) return { ghost: empty, strip };
 
   const name = nameGhost(doc, cur, line, settings);

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import type { Download } from '@playwright/test';
+import type { Download, Page } from '@playwright/test';
 import {
   act,
   closeByScrim,
@@ -16,6 +16,7 @@ import {
   seed,
   stored,
   storedSettings,
+  strip,
   stubClipboard,
   tapRow,
   test,
@@ -25,11 +26,25 @@ import type { Step } from './helpers';
 const LAST_ENTRY =
   '11/22\nPull\nWeighted chin ups-200-2/180-4/\nUnderhand rows-370-6/370-6/370-5/\nHammer curls-75-4/70-5/';
 
-const NEW_BENCH: Step[] = ['tap:newline', 'tap:newline', 'enter', 'enter', 'type:P', 'enter', 'enter', 'enter'];
+const NEW_BENCH: Step[] = ['enter', 'enter', 'enter', 'enter', 'type:P', 'enter', 'enter', 'enter'];
 
 test.describe('menu and sheet', () => {
   test.beforeEach(async ({ page }) => {
     await stubClipboard(page);
+  });
+
+  test('menu rows', async ({ page }) => {
+    await open(page);
+    await openMenu(page);
+    await expect(page.locator('.sheet .row')).toHaveText([
+      'Dashboard',
+      'Copy all',
+      'Copy entry',
+      'Export',
+      'Import',
+      'Lint',
+      'Settings',
+    ].map(label => new RegExp(`^${label}`)));
   });
 
   test('sheet mechanics', async ({ page }) => {
@@ -151,6 +166,9 @@ test.describe('menu and sheet', () => {
     await openMenu(page);
     await tapRow(page, 'settings');
     await page.locator('input[data-field="target"][data-key="bench"]').fill('3');
+    const bench = (field: string) => page.locator(`input[data-field="${field}"][data-key="bench"]`);
+    await expect(bench('target')).toHaveAttribute('placeholder', '4');
+    await expect(bench('increment')).toHaveAttribute('placeholder', '5');
     await closeByScrim(page);
     await expect.poll(async () => (await storedSettings(page))?.exercises?.bench?.target).toBe(3);
 
@@ -165,7 +183,13 @@ test.describe('menu and sheet', () => {
     await expect(page.locator('input[data-field="target"][data-key="bench"]')).toHaveValue('3');
   });
 
-  test('aliases change the suggestion', async ({ page }) => {
+  const chinStrip = async (page: Page) => {
+    await focusEnd(page);
+    await act(page, 'enter');
+    await act(page, 'type:Chin ups');
+  };
+
+  test('aliases merge exercises', async ({ page }) => {
     test.skip(!hasFixture, 'fixture not present');
     await seed(page, readFixture());
     await openMenu(page);
@@ -173,21 +197,42 @@ test.describe('menu and sheet', () => {
     const area = page.locator('[data-field=aliases]');
     await area.fill((await area.inputValue()) + '\nChin ups, Weighted chin ups');
     await closeByScrim(page);
-    await focusEnd(page);
-    await run(page, [['tap:newline', null]]);
+    await chinStrip(page);
+    await expectGhost(page, '-190');
+    expect(await strip(page)).toEqual([
+      ['11/18', '190-3/160-4/145-4'],
+      ['11/12', '180-3/135-5'],
+    ]);
   });
 
-  for (const state of ['menu open', 'menu closed']) {
+  test('without the alias the exercises stay apart', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await seed(page, readFixture());
+    await chinStrip(page);
+    await expectGhost(page, '-180');
+    expect(await strip(page)).toEqual([
+      ['11/12', '180-3/135-5'],
+      ['11/8', '180-3/180-3/160-4'],
+    ]);
+  });
+
+  for (const state of ['menu closed', 'menu open', 'dashboard list', 'dashboard detail']) {
     test(`design guards, ${state}`, async ({ page }) => {
       test.skip(!hasFixture, 'fixture not present');
       await seed(page, readFixture());
-      if (state === 'menu open') await openMenu(page);
+      if (state !== 'menu closed') await openMenu(page);
+      if (state.startsWith('dashboard')) await tapRow(page, 'dashboard');
+      if (state === 'dashboard detail') {
+        await page.locator('.dash-row[data-key="bench"]').tap();
+        await expect(page.locator('.readout-value')).toHaveText('290');
+        await page.waitForTimeout(500);
+      }
       const bad = await page.evaluate(() => {
         const found: string[] = [];
         for (const e of Array.from(document.querySelectorAll('*'))) {
           const s = getComputedStyle(e);
           const filter = s.getPropertyValue('backdrop-filter') || s.getPropertyValue('-webkit-backdrop-filter');
-          const name = `${e.tagName}.${e.className}`;
+          const name = `${e.tagName}.${String(e.getAttribute('class'))}`;
           if (s.boxShadow !== 'none') found.push(`${name} box-shadow ${s.boxShadow}`);
           if (filter && filter !== 'none') found.push(`${name} backdrop-filter ${filter}`);
           if (s.backgroundImage !== 'none') found.push(`${name} background-image ${s.backgroundImage}`);
@@ -198,7 +243,16 @@ test.describe('menu and sheet', () => {
       const menu = (await page.locator('[data-action=menu]').boundingBox())!;
       expect(menu.width).toBeGreaterThanOrEqual(44);
       expect(menu.height).toBeGreaterThanOrEqual(44);
-      await expect(page.locator('[data-action=accept]')).toHaveCSS('background-color', 'rgb(242, 242, 242)');
+      if (state === 'dashboard detail') {
+        const colors = await page.evaluate(() =>
+          Array.from(document.querySelectorAll('svg *')).flatMap(e =>
+            ['fill', 'stroke'].map(a => e.getAttribute(a)).filter((v): v is string => v !== null),
+          ),
+        );
+        const allowed = new Set(['none', '#F2F2F2', '#8A8A8A', '#262626', '#0A0A0A']);
+        expect(colors.filter(c => !allowed.has(c))).toEqual([]);
+        expect(colors.length).toBeGreaterThan(0);
+      }
     });
   }
 });
