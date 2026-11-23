@@ -32,8 +32,12 @@ test.describe('dashboard', () => {
     await expect(latest(page, 'leg extensions')).toHaveText('max × 10');
     await expect(page.locator('.dash-list [data-mode="sets"]')).toHaveAttribute('aria-selected', 'true');
 
+    await expect(page.locator('.dash-list .dash-formula')).toBeHidden();
     await page.locator('.dash-list [data-mode="1rm"]').tap();
     await expect(page.locator('.dash-list [data-mode="1rm"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.dash-list .dash-formula')).toHaveText(
+      'Wathan formula: 1RM = 100w ÷ (48.8 + 53.8e^(−0.075r)), w = weight, r = reps',
+    );
     await expect(first.locator('.dash-latest')).toHaveText('322');
     await expect(latest(page, 'leg extensions')).not.toContainText('×');
   });
@@ -74,6 +78,7 @@ test.describe('dashboard', () => {
     await page.locator('.dash-detail [data-mode="1rm"]').tap();
     await expect(page.locator('.readout-value')).toHaveText('322');
     await expect(page.locator('.readout-suffix')).toHaveText('est. 1RM');
+    await expect(page.locator('.dash-detail .dash-formula')).toContainText('Wathan formula: 1RM = 100w');
     await expect(page.locator('.chart-1rm .chart-line')).toHaveCount(1);
     await expect(page.locator('.chart-weight')).toHaveCount(0);
     await expect(recent.first()).toContainText('11/21');
@@ -94,6 +99,14 @@ test.describe('dashboard', () => {
     await expect(page.locator('.dash-detail')).toHaveCount(0);
     await expect(page.locator('.dash-list [data-mode="1rm"]')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.dash-row').first().locator('.dash-latest')).toHaveText('322');
+  });
+
+  test('long names wrap instead of being cut off', async ({ page }) => {
+    await openDashboard(page);
+    const name = page.locator('.dash-row[data-key="weighted sit ups"] .dash-name');
+    await expect(name).toHaveText('Weighted sit ups');
+    const fits = await name.evaluate(e => e.scrollWidth <= e.clientWidth && e.scrollHeight <= e.clientHeight + 1);
+    expect(fits).toBe(true);
   });
 
   test('max sets read as max', async ({ page }) => {

@@ -35,9 +35,9 @@ test.describe('with the real log', () => {
   test('screenshot: sheet, lint, settings', async ({ page }) => {
     await seed(page, readFixture());
     await tapTab(page, 'lint');
+    await page.locator('.lint-card').waitFor();
     await shot(page, 'lint.png');
-    await page.locator('.lint-row[data-line="100"]').tap();
-    await page.locator('[data-field=fix]').waitFor();
+    await page.locator('.lint-row[data-line="1424"]').tap();
     await shot(page, 'lint-fix.png');
     await page.keyboard.press('Escape');
     await page.locator('.sheet').waitFor({ state: 'detached' });

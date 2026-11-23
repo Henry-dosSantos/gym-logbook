@@ -77,7 +77,9 @@ async function boot(): Promise<void> {
   bar.setFlagCount(view.state.field(parsedField).flags.length);
   app.append(editorHost, toolbar.el, bar.el);
   installTapFlash(app, editorHost, view);
-  trackViewport(app);
+  trackViewport(app, () => {
+    if (view.hasFocus) requestAnimationFrame(() => scrollCaretIntoView(view));
+  });
   view.focus();
 
   const flushAll = () => {

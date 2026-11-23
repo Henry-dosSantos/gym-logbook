@@ -119,38 +119,34 @@ export function rankDayTypes(doc: Doc, beforeEntry: number, prevKey: string | nu
   return next === null ? ranked : [next, ...ranked.filter(k => k !== next)];
 }
 
-const ROTATION_WINDOW = 15;
+const TRIO = ['push', 'pull', 'legs'];
+const LEADING_TRIO = /^\s*(push|pull|legs)\b/i;
+
+/** Which of push, pull and legs an entry was: from its day type, else from a line that starts with one. */
+export function trioOf(entry: Entry): string | null {
+  const fromDay = entry.dayKey?.split(/[^a-z]+/).find(w => TRIO.includes(w));
+  if (fromDay) return fromDay;
+  for (const line of entry.lines.slice(1)) {
+    const m = LEADING_TRIO.exec(line.text);
+    if (m) return m[1].toLowerCase();
+  }
+  return null;
+}
 
 /**
- * The day type in the current rotation that was done longest ago, assumed to be today's.
- * The rotation is the day types of the last 15 entries; variants count as their base word
- * ("heavy push" and "push at 11 pm" are push). Once there are 15 entries, a type seen only
- * once in them is a one-off and left out.
+ * Of push, pull and legs, the one done longest ago, assumed to be today's.
+ * Only types that appear in the log count; prefix narrows the choice.
  */
 export function nextInRotation(doc: Doc, beforeEntry: number, prefix: string): string | null {
-  const base = new Set([...dayKeyCounts(doc, beforeEntry).keys()].filter(k => !/\s/.test(k)));
-  const familyOf = (key: string) => key.split(/\s+/).find(w => base.has(w)) ?? null;
-  const seen = new Map<string, { count: number; last: number }>();
-  let window = 0;
-  for (let i = Math.min(beforeEntry, doc.entries.length) - 1; i >= 0 && window < ROTATION_WINDOW; i--) {
-    const key = doc.entries[i].dayKey;
-    if (!key) continue;
-    window++;
-    const family = familyOf(key);
-    if (family === null) continue;
-    const f = seen.get(family);
-    if (f) f.count++;
-    else seen.set(family, { count: 1, last: i });
+  const last = new Map<string, number>();
+  for (let i = 0; i < Math.min(beforeEntry, doc.entries.length); i++) {
+    const t = trioOf(doc.entries[i]);
+    if (t) last.set(t, i);
   }
-  const minCount = window >= ROTATION_WINDOW ? 2 : 1;
   let pick: string | null = null;
-  let oldest = Infinity;
-  for (const [family, { count, last }] of seen) {
-    if (count < minCount || !family.startsWith(prefix)) continue;
-    if (last < oldest) {
-      oldest = last;
-      pick = family;
-    }
+  for (const t of TRIO) {
+    if (!last.has(t) || !t.startsWith(prefix)) continue;
+    if (pick === null || last.get(t)! < last.get(pick)!) pick = t;
   }
   return pick;
 }

@@ -42,10 +42,14 @@ A date line starts an entry, the next line is the day type, then one exercise pe
 ## Suggestions
 
 - New entry: today's date.
-- Day line: the day type in your rotation that you did longest ago, shown as soon as the line is empty (after Push, Pull, Legs it suggests Push; after Push, Pull, Legs, Push it suggests Pull). The rotation is the day types of your last 15 entries; variants count as their base word (Heavy push and Push at 11 pm are Push), and once there are 15 entries a type seen only once among them is a one-off and left out. Typing narrows it: P picks whichever of Push and Pull is older.
+- Day line: whichever of Push, Pull and Legs you did longest ago, shown as soon as the line is empty (after Push, Pull, Legs it suggests Push; after Push, Pull, Legs, Push it suggests Pull). An entry counts as one of the three if its day line contains the word (Heavy push, Pull at 11:35), or, when it has no day line, if one of its lines starts with it (Legs-405-2/). Typing narrows it: P picks whichever of Push and Pull is older. Other day types are suggested from your history once you type their first letters.
 - Empty line in an entry: the next exercise from your last session of the same day type. Only in today's entry (or yesterday's before 4 am).
 - Weights: last session's weight for that set. Set 1 goes up when the last two sessions used the same weight for at least the target reps (odd stack weights go to the next weight you have logged).
 - The global rule (reps to hit, how much to add) lives under Settings (bar, last button), Progression. Individual exercises can have their own rule under Custom rules; Reset to default on an exercise removes its rule, and Reset all to default (with a confirm) removes every one. Merged names combines spellings into one exercise.
+
+## Tapping the page
+
+A tap on empty space in the log, or holding a finger there for Paste and Copy, sends a faint ripple out from your finger.
 
 ## Backup
 
@@ -55,17 +59,17 @@ The log lives only on the device, in IndexedDB. Use Copy all in the bar to keep 
 
 The frosted bar at the bottom has six buttons: Dashboard, Copy day, Copy all, Paste, Lint and Settings. It hides while the keyboard is open. Copy and paste show a check mark when they finish.
 
-Dashboard, Lint and Settings open a sheet that rises to half the screen. Pull it up by the handle (or anywhere on it while it is at half height) to make it full screen; pull it down to go back to half or close it. Tapping a text field makes it full screen.
+Dashboard and Settings open a sheet that rises to half the screen. Pull it up by the handle (or anywhere on it while it is at half height) to make it full screen; pull it down to go back to half or close it. Tapping a text field makes it full screen.
 
 ## Lint
 
-Lint in the bar lists lines the parser could not make sense of (dates out of order, a wrong year, sets with no exercise name, a missing dash, a bad number). Tap one to see a suggested fix. Press Enter or tap Fix to apply it and move to the next one, or Show in log to jump to the line. Nothing changes unless you confirm.
+Lint in the bar opens a panel on the bottom half of the screen and leaves the log visible above it. It lists lines the parser could not make sense of (dates out of order, a wrong year, sets with no exercise name, a missing dash, a bad number). The log jumps to the flag you are on and highlights the line, so you can see it in context. Fix applies the suggested change and moves to the next flag (Enter does the same on a hardware keyboard); the arrows step through the flags; Edit closes the panel with the cursor at the end of that line. Tapping the log, the close button, or pulling the panel down closes it. Nothing changes unless you confirm.
 
 ## Dashboard
 
 Dashboard in the bar lists every exercise with a small trend line and its latest set 1 as weight × reps. Tap one for two stacked charts per session, set 1 weight on top and set 1 reps under it; drag across either to read any session. Sessions at `max` or without a weight leave a gap in the weight chart.
 
-The toggle at the top switches the list and every exercise between Weight × reps and 1RM. 1RM is an estimated one-rep max from the best set of each session, using the Wathan equation (`1RM = 100w / (48.8 + 53.8e^(-0.075r))`), which LeSuer et al. (1997) found closest to measured maxes along with Mayhew. Sets at `max` or without a weight have no estimate, and for weighted-only exercises like weighted pull ups the estimate leaves out body weight. Estimates are less reliable above 10 reps.
+The toggle at the top switches the list and every exercise between Weight × reps and 1RM. 1RM is an estimated one-rep max from the best set of each session, using the Wathan equation, shown under the toggle in 1RM mode (`1RM = 100w / (48.8 + 53.8e^(-0.075r))`), which LeSuer et al. (1997) found closest to measured maxes along with Mayhew. Sets at `max` or without a weight have no estimate, and for weighted-only exercises like weighted pull ups the estimate leaves out body weight. Estimates are less reliable above 10 reps.
 
 ## Platform adapter
 

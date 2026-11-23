@@ -190,7 +190,7 @@ function dayGhost(doc: Doc, cur: Entry, line: Line): DayResult {
   const best = rankDayTypes(doc, cur.index, prevKey, p)[0];
   if (best === undefined) return null;
   const entry = latestEntryWithDayKey(doc, cur.index, best);
-  const display = entry?.dayRaw ?? '';
+  const display = entry?.dayRaw ?? best.charAt(0).toUpperCase() + best.slice(1);
   const typedLen = t.replace(/^\s+/, '').length;
   if (display.length > typedLen && display.toLowerCase().startsWith(p)) {
     return { ghost: { text: display.slice(typedLen), kind: 'day', space: false } };

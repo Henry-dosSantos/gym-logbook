@@ -122,10 +122,19 @@ describe('day type prediction', () => {
     expect(nextInRotation(parseDoc(log(['Push', 'Pull', 'Legs', 'Heavy push', 'Pull at home'])), 5, '')).toBe('legs');
   });
 
-  it('leaves out one-offs once the rotation is full', () => {
-    const names = ['Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs', 'Bjj', 'Push', 'Pull', 'Legs', 'Push', 'Pull'];
-    expect(nextInRotation(parseDoc(log(names)), names.length, '')).toBe('legs');
+  it('only picks between push, pull and legs', () => {
     expect(nextInRotation(parseDoc(log(['Push', 'Bjj', 'Pull'])), 3, '')).toBe('push');
+    expect(nextInRotation(parseDoc(log(['Legs', 'Push', 'Pull', 'Bjj', 'Walk'])), 5, '')).toBe('legs');
+    expect(dayGhost(['Back', 'Chest'])).toBeNull();
+  });
+
+  it('counts a legs day that has no day line', () => {
+    const legs = '11/17\nLegs-405-2/365-6/365-3/\nLeg curls-245-4/235-4/235-4/';
+    const pull = '11/18\nPull at 11:35. Had 25 minutes\nWeighted chin ups-190-3/';
+    const push = '11/21\nPush\nBench-290-3/';
+    const pull2 = '11/22\nPull\nHammer curls-75-4/70-5/';
+    const text = [legs, pull, push, pull2].join('\n\n') + '\n' + [legs, pull, push, pull2].join('\n\n') + '\n\n11/23\n';
+    expect(suggest(parseDoc(text), text.length, DEFAULT_SETTINGS, new Date(2026, 10, 23)).ghost?.text).toBe('Legs');
   });
 
   it('shows nothing on a blank log', () => {

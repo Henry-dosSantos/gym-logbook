@@ -16,8 +16,11 @@ export function openSheet(opts: {
   label: string;
   content: HTMLElement;
   flush?: boolean;
+  /** A panel stays at half height, has no scrim, and leaves the log above it visible. */
+  panel?: boolean;
   onClose?(): void;
 }): SheetHandle {
+  const panel = opts.panel ?? false;
   current?.close();
   (document.activeElement as HTMLElement | null)?.blur();
 
@@ -25,7 +28,7 @@ export function openSheet(opts: {
   const scrim = document.createElement('div');
   scrim.className = 'scrim';
   const sheet = document.createElement('div');
-  sheet.className = 'sheet glass';
+  sheet.className = panel ? 'sheet glass is-panel' : 'sheet glass';
   sheet.setAttribute('role', 'dialog');
   sheet.setAttribute('aria-modal', 'true');
   sheet.setAttribute('aria-label', opts.label);
@@ -46,7 +49,9 @@ export function openSheet(opts: {
   body.className = opts.flush ? 'sheet-body is-flush' : 'sheet-body';
   body.append(opts.content);
   sheet.append(head, body);
-  app.append(scrim, sheet);
+  if (panel) app.classList.add('has-panel');
+  else app.append(scrim);
+  app.append(sheet);
 
   let closed = false;
   let detent: 'medium' | 'large' = 'medium';
@@ -114,6 +119,7 @@ export function openSheet(opts: {
 
   const finish = () => {
     scrim.remove();
+    if (panel) app.classList.remove('has-panel');
     sheet.remove();
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('resize', relayout);
@@ -144,9 +150,15 @@ export function openSheet(opts: {
 
   scrim.addEventListener('click', () => handle.close());
 
+  // WebKit hands focus back to the log (where the text selection still is) when a press lands on
+  // something that cannot take focus. Keep presses on the sheet from moving focus at all.
+  sheet.addEventListener('mousedown', e => {
+    if (!(e.target as Element).closest('input, textarea, select')) e.preventDefault();
+  });
+
   sheet.addEventListener('focusin', e => {
     const t = e.target as HTMLElement;
-    if (detent === 'medium' && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) moveTo('large', offset);
+    if (!panel && detent === 'medium' && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) moveTo('large', offset);
   });
 
   let startY = 0;
@@ -159,13 +171,14 @@ export function openSheet(opts: {
 
   const visual = (clientY: number) => {
     const raw = startOffset + (clientY - startY);
-    return raw < 0 ? raw / 4 : Math.min(raw, height());
+    const top = panel ? mediumOffset() : 0;
+    return raw < top ? top + (raw - top) / 4 : Math.min(raw, height());
   };
 
   sheet.addEventListener('pointerdown', e => {
     if (closed || !e.isPrimary) return;
     fromHead = head.contains(e.target as Node);
-    if (!fromHead && (detent !== 'medium' || (e.target as Element).closest('[data-no-drag]'))) return;
+    if (!fromHead && (panel || detent !== 'medium' || (e.target as Element).closest('[data-no-drag]'))) return;
     pointer = e.pointerId;
     startY = e.clientY;
     startOffset = offset;
@@ -209,7 +222,8 @@ export function openSheet(opts: {
     const h = height();
     const scrimFrom = scrimAt(y);
     let target: 'large' | 'medium' | 'dismiss';
-    if (v < -FLING) target = 'large';
+    if (panel) target = v > FLING || y > m + 0.3 * (h - m) ? 'dismiss' : 'medium';
+    else if (v < -FLING) target = 'large';
     else if (v > FLING) target = y < m ? 'medium' : 'dismiss';
     else if (y > m + 0.3 * (h - m)) target = 'dismiss';
     else target = Math.abs(y) < Math.abs(y - m) ? 'large' : 'medium';

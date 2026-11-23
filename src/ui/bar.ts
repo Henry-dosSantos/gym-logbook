@@ -6,7 +6,7 @@ import { parsedField } from '../editor/state';
 import { platform } from '../platform';
 import { dashboardView } from './dashboard';
 import { el, icon } from './dom';
-import { lintView } from './lint-view';
+import { lintPanel } from './lint-view';
 import { pressable } from './press';
 import { settingsView } from './settings-view';
 import type { AppContext } from './settings-view';
@@ -52,7 +52,19 @@ export function createBar(ctx: AppContext): Bar {
   const handlers: Record<string, (tab: HTMLButtonElement) => void> = {
     dashboard: () =>
       sheet('Dashboard', dashboardView(ctx.view.state.field(parsedField), ctx.getSettings().aliases)),
-    lint: () => sheet('Lint', lintView(ctx)),
+    lint: () => {
+      const panel = lintPanel(ctx);
+      openSheet({
+        label: 'Lint',
+        content: panel.el,
+        panel: true,
+        onClose: () => {
+          panel.cleanup();
+          ctx.flushSettings();
+        },
+      });
+      panel.start();
+    },
     settings: () => sheet('Settings', settingsView(ctx)),
     'copy-today': tab => {
       const text = todayText(ctx.view.state.field(parsedField), new Date());

@@ -14,7 +14,8 @@ const MODES: [Mode, string][] = [
   ['1rm', '1RM'],
 ];
 
-const FOOTER = 'Estimated with the Wathan equation from the best set of each session. Less reliable above 10 reps.';
+const FORMULA = 'Wathan formula: 1RM = 100w ÷ (48.8 + 53.8e^(−0.075r)), w = weight, r = reps';
+const FOOTER = 'From the best set of each session. Less reliable above 10 reps.';
 const NO_ESTIMATE = 'No estimate: this exercise is logged at max or without weights.';
 
 interface ModeState {
@@ -200,6 +201,7 @@ function buildDetail(doc: Doc, aliases: string[][], item: DashboardItem, state: 
   const render = (fade: boolean) => {
     toggle.sync();
     footer.hidden = state.get() !== '1rm';
+    syncFormula();
     showReadout(last);
     renderStats();
     renderRecent();
@@ -218,7 +220,9 @@ function buildDetail(doc: Doc, aliases: string[][], item: DashboardItem, state: 
     onEnd: () => showReadout(last),
   });
 
-  root.append(header, readout, toggle.el, body);
+  const formula = el('div', 'dash-formula', FORMULA);
+  const syncFormula = () => (formula.hidden = state.get() !== '1rm');
+  root.append(header, readout, toggle.el, formula, body);
   new ResizeObserver(() => {
     const width = area.clientWidth;
     if (drawnWidth && width && width !== drawnWidth) drawCharts();
@@ -246,8 +250,10 @@ export function dashboardView(doc: Doc, aliases: string[][]): HTMLElement {
     for (const { item, row } of rows) renderRow(item, row);
   };
 
+  const formula = el('div', 'dash-formula', FORMULA);
   const toggle = modeToggle(state, () => {
     renderRows();
+    formula.hidden = mode !== '1rm';
     fadeIn(list);
   });
 
@@ -256,6 +262,7 @@ export function dashboardView(doc: Doc, aliases: string[][]): HTMLElement {
     className: 'dash-list',
     refresh: () => {
       toggle.sync();
+      formula.hidden = mode !== '1rm';
       renderRows();
     },
   });
@@ -271,6 +278,8 @@ export function dashboardView(doc: Doc, aliases: string[][]): HTMLElement {
     list.append(row);
   }
   renderRows();
-  page.append(items.length ? toggle.el : el('div'), list);
+  formula.hidden = true;
+  if (items.length) page.append(toggle.el, formula);
+  page.append(list);
   return stack.el;
 }

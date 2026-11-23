@@ -92,7 +92,7 @@ test.describe('bar', () => {
       'black-translucent',
     );
     await expect(page.locator('.editor')).toHaveCSS('padding-top', '0px');
-    await page.evaluate(() => document.documentElement.style.setProperty('--top', '59px'));
+    await page.addStyleTag({ content: ':root { --top: 59px !important; }' });
     await expect(page.locator('.cm-content')).toHaveCSS('padding-top', '67px');
     expect((await page.locator('.cm-scroller').boundingBox())!.y).toBe(0);
   });
@@ -104,8 +104,8 @@ test.describe('bar', () => {
 
     test.beforeEach(async ({ page }) => {
       await seed(page, readFixture());
-      await tapTab(page, 'lint');
-      await page.locator('.lint-row').first().waitFor();
+      await tapTab(page, 'settings');
+      await page.locator('[data-action=exercises]').waitFor();
       await page.waitForTimeout(400);
     });
 
@@ -118,7 +118,7 @@ test.describe('bar', () => {
       await page.waitForTimeout(400);
       expect(await top(page)).toBeLessThanOrEqual(16);
 
-      await dragSheet(page, 200, 40);
+      await dragSheet(page, 300, 40);
       await expect(page.locator('.sheet[data-detent="medium"]')).toHaveCount(1);
       await page.waitForTimeout(400);
       expect(Math.abs((await top(page)) - 426)).toBeLessThanOrEqual(12);
@@ -128,7 +128,7 @@ test.describe('bar', () => {
     });
 
     test('at half height the whole sheet drags and a drag is not a tap', async ({ page }) => {
-      const row = (await page.locator('.lint-row').first().boundingBox())!;
+      const row = (await page.locator('[data-action=exercises]').boundingBox())!;
       const x = row.x + row.width / 2;
       const y = row.y + row.height / 2;
       await page.mouse.move(x, y);
@@ -138,17 +138,75 @@ test.describe('bar', () => {
       await expect(page.locator('.sheet[data-detent="large"]')).toHaveCount(1);
       await page.waitForTimeout(400);
       await expect(page.locator('.stack-page')).toHaveCount(1);
-      await expect(page.locator('[data-field=fix]')).toHaveCount(0);
     });
 
     test('a plain tap at half height opens the row', async ({ page }) => {
-      await page.locator('.lint-row').first().tap();
-      await expect(page.locator(`${TOP} [data-field=fix]`)).toBeFocused();
-      await expect(page.locator('.sheet[data-detent="large"]')).toHaveCount(1);
+      await page.locator('[data-action=exercises]').tap();
+      await expect(page.locator(`${TOP} .page-title`)).toHaveText('Custom rules');
     });
   });
 
-  for (const action of ['dashboard', 'lint', 'settings']) {
+  test.describe('lint panel', () => {
+    test.skip(!hasFixture, 'fixture not present');
+
+    test.beforeEach(async ({ page }) => {
+      await seed(page, readFixture());
+      await tapTab(page, 'lint');
+      await page.locator('.lint-card').waitFor();
+      await page.waitForTimeout(400);
+    });
+
+    test('sits at half height over the log, which jumps to each flag', async ({ page }) => {
+      await expect(page.locator('.sheet.is-panel[data-detent="medium"]')).toHaveCount(1);
+      await expect(page.locator('.scrim')).toHaveCount(0);
+      expect(Math.abs((await page.locator('.sheet').boundingBox())!.y - 426)).toBeLessThanOrEqual(12);
+      await expect(page.locator('.lint-count')).toHaveText('1 of 18');
+      await expect(page.locator('.lint-card .lint-top')).toContainText('Line 100');
+
+      const focused = page.locator('.cm-l-focus');
+      await expect(focused).toHaveCount(1);
+      await expect(focused).toHaveText('Back extensions-270-6/270-5/250q-6/');
+      const inTopHalf = async () => {
+        const box = (await focused.boundingBox())!;
+        return box.y > 0 && box.y + box.height < 426;
+      };
+      await expect.poll(inTopHalf).toBe(true);
+
+      await page.locator('[data-action=next]').tap();
+      await expect(page.locator('.lint-count')).toHaveText('2 of 18');
+      await expect(focused).toHaveText('2/8/25');
+      await expect.poll(inTopHalf).toBe(true);
+      await page.locator('[data-action=prev]').tap();
+      await expect(page.locator('.lint-count')).toHaveText('1 of 18');
+
+      await page.locator('.lint-row[data-line="1424"]').tap();
+      await expect(page.locator('.lint-count')).toHaveText('18 of 18');
+      await expect(focused).toHaveText('Legs-405-2/365-6/365-3/');
+      await expect.poll(inTopHalf).toBe(true);
+      await expect(page.locator('.lint-row[data-line="1424"]')).toHaveAttribute('aria-current', 'true');
+      await expect.poll(async () => (await page.locator('[data-action=apply]').boundingBox())!.y).toBeGreaterThan(426);
+      await expect.poll(async () => (await page.locator('[data-action=apply]').boundingBox())!.y).toBeLessThan(700);
+
+      await page.locator('[data-action=close]').tap();
+      await expect(page.locator('.sheet')).toHaveCount(0);
+      await expect(focused).toHaveCount(0);
+    });
+
+    test('closes with Escape and by dragging down', async ({ page }) => {
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.sheet')).toHaveCount(0);
+      await tapTab(page, 'lint');
+      await page.waitForTimeout(400);
+      await dragSheet(page, -200);
+      await page.waitForTimeout(400);
+      await expect(page.locator('.sheet[data-detent="medium"]')).toHaveCount(1);
+      expect(Math.abs((await page.locator('.sheet').boundingBox())!.y - 426)).toBeLessThanOrEqual(12);
+      await dragSheet(page, 300);
+      await expect(page.locator('.sheet')).toHaveCount(0);
+    });
+  });
+
+  for (const action of ['dashboard', 'settings']) {
     test(`${action} sheet opens and closes`, async ({ page }) => {
       test.skip(!hasFixture, 'fixture not present');
       await seed(page, readFixture());
@@ -268,10 +326,36 @@ test.describe('bar', () => {
   test('tap flash on empty space only', async ({ page }) => {
     await open(page);
     await page.touchscreen.tap(196, 400);
-    await expect(page.locator('.tap-flash')).toHaveCount(1);
-    await expect(page.locator('.tap-flash')).toHaveCount(0, { timeout: 1000 });
+    await expect(page.locator('.tap-flash:not(.is-ring)')).toHaveCount(1);
+    await expect(page.locator('.tap-flash.is-ring')).toHaveCount(2);
+    const ring = (await page.locator('.tap-flash.is-ring').first().boundingBox())!;
+    expect(Math.abs(ring.x + ring.width / 2 - 196)).toBeLessThanOrEqual(2);
+    expect(Math.abs(ring.y + ring.height / 2 - 400)).toBeLessThanOrEqual(2);
+    await expect(page.locator('.tap-flash')).toHaveCount(0, { timeout: 1500 });
     await act(page, 'type:a');
     await expect.poll(() => stored(page)).toBe('a');
+  });
+
+  test('holding on empty space ripples once, before letting go', async ({ page }) => {
+    await open(page);
+    await page.mouse.move(196, 400);
+    await page.mouse.down();
+    await expect(page.locator('.tap-flash.is-ring')).toHaveCount(2);
+    await expect(page.locator('.tap-flash')).toHaveCount(0, { timeout: 1500 });
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+    await expect(page.locator('.tap-flash')).toHaveCount(0);
+  });
+
+  test('tab bar sits low and settings steppers are large', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await seed(page, readFixture());
+    const bar = (await page.locator('.tabbar').boundingBox())!;
+    expect(852 - (bar.y + bar.height)).toBeLessThanOrEqual(8);
+    await tapTab(page, 'settings');
+    const step = (await page.locator('[data-setting="target"] [data-step="up"]').boundingBox())!;
+    expect(step.width).toBeGreaterThanOrEqual(56);
+    expect(step.height).toBeGreaterThanOrEqual(44);
   });
 
   test('no tap flash on text', async ({ page }) => {
@@ -290,19 +374,17 @@ test.describe('bar', () => {
     await seed(page, F);
     await tapTab(page, 'lint');
     await expect(page.locator('.lint-row')).toHaveCount(18);
-    const row = page.locator('.lint-row[data-line="100"]');
-    await expect(row.locator('.lint-msg')).toHaveText('Bad number');
-    await expect(row.locator('.lint-fix-text')).toHaveText(FIXES[100]);
-    await row.tap();
-    await expect(page.locator(`${TOP} .page-title`)).toHaveText('Line 100');
-    const input = page.locator(`${TOP} [data-field=fix]`);
-    await expect(input).toHaveValue(FIXES[100]);
-    await expect(input).toBeFocused();
+    const card = page.locator('.lint-card');
+    await expect(card.locator('.lint-msg')).toHaveText('Bad number');
+    await expect(card.locator('.lint-fix-text')).toHaveText(FIXES[100]);
     await page.waitForTimeout(500);
     await page.keyboard.press('Enter');
-    await expect(page.locator(`${TOP} .page-title`)).toHaveText('Line 192');
-    await expect(input).toHaveValue('2/8');
-    for (let i = 0; i < 17; i++) await page.keyboard.press('Enter');
+    await expect(card.locator('.lint-num')).toHaveText('Line 192');
+    await expect(card.locator('.lint-fix-text')).toHaveText('2/8');
+    await expect(page.locator('.lint-row')).toHaveCount(17);
+    await page.locator('[data-action=apply]').tap();
+    await expect(card.locator('.lint-num')).toHaveText('Line 194');
+    for (let i = 0; i < 16; i++) await page.keyboard.press('Enter');
     await expect(page.locator('.lint .empty')).toHaveText('No flags');
     await expect(page.locator('.tab-badge')).toBeHidden();
     await expect.poll(() => stored(page)).toBe(withFixes(F));
@@ -320,29 +402,30 @@ test.describe('bar', () => {
     expect((await stored(page))!.split('\n')[1423]).toBe('Legs-405-2/365-6/365-3/');
   });
 
-  test('lint edit and show in log', async ({ page }) => {
+  test('lint edit puts the cursor on the line in the log', async ({ page }) => {
     test.skip(!hasFixture, 'fixture not present');
     const F = readFixture();
     await seed(page, F);
     await tapTab(page, 'lint');
     await page.locator('.lint-row[data-line="823"]').tap();
-    const input = page.locator(`${TOP} [data-field=fix]`);
-    await input.fill('Calf raises-465-14/465-14/465-13/');
-    await page.locator(`${TOP} [data-action=apply]`).tap();
-    await expect
-      .poll(async () => ((await stored(page)) ?? '').split('\n')[822])
-      .toBe('Calf raises-465-14/465-14/465-13/');
-
-    await expect(page.locator(`${TOP} .page-title`)).toHaveText('Line 900');
-    await page.locator(`${TOP} [data-action=back]`).tap();
-    await expect(page.locator('.lint-row')).toHaveCount(17);
-    await page.locator('.lint-row[data-line="100"]').tap();
-    await page.locator(`${TOP} [data-action=show]`).tap();
+    await expect(page.locator('.lint-card .lint-num')).toHaveText('Line 823');
+    await page.locator('[data-action=edit]').tap();
     await expect(page.locator('.sheet')).toHaveCount(0);
+    await expect(page.locator('.cm-content')).toBeFocused();
     await page.keyboard.type('X');
     await expect
-      .poll(async () => ((await stored(page)) ?? '').split('\n')[99])
-      .toBe('Back extensions-270-6/270-5/250q-6/X');
+      .poll(async () => ((await stored(page)) ?? '').split('\n')[822])
+      .toBe(F.split('\n')[822] + 'X');
+  });
+
+  test('tapping the log closes the lint panel', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await seed(page, readFixture());
+    await tapTab(page, 'lint');
+    await page.locator('.lint-card').waitFor();
+    await page.waitForTimeout(400);
+    await page.locator('.cm-content').tap({ position: { x: 40, y: 10 } });
+    await expect(page.locator('.sheet')).toHaveCount(0);
   });
 
   const states = [
@@ -351,8 +434,8 @@ test.describe('bar', () => {
     'dashboard detail',
     'dashboard list 1rm',
     'dashboard detail 1rm',
-    'lint root',
-    'fix page',
+    'lint panel',
+    'lint panel next',
     'settings root',
     'exercise page',
     'merged names page',
@@ -377,13 +460,13 @@ test.describe('bar', () => {
         await page.locator('.dash-detail [data-mode="1rm"]').tap();
         await expect(page.locator('.readout-value')).toHaveText('322');
       }
-      if (state === 'lint root' || state === 'fix page') {
+      if (state.startsWith('lint')) {
         await tapTab(page, 'lint');
-        await page.locator('.lint-row').first().waitFor();
+        await page.locator('.lint-card').waitFor();
       }
-      if (state === 'fix page') {
-        await page.locator('.lint-row').first().tap();
-        await page.locator('[data-field=fix]').waitFor();
+      if (state === 'lint panel next') {
+        await page.locator('[data-action=next]').tap();
+        await expect(page.locator('.lint-count')).toHaveText('2 of 18');
       }
       if (state.includes('settings') || state === 'exercise page' || state === 'merged names page') {
         await tapTab(page, 'settings');
