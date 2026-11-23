@@ -34,6 +34,7 @@ A date line starts an entry, the next line is the day type, then one exercise pe
 - Enter accepts the ghost text, otherwise inserts a new line.
 - Space accepts while typing numbers, otherwise types a space.
 - Typing anything else that does not match hides the suggestion. A space on an empty line dismisses the next-exercise suggestion.
+- Backspace on an empty line removes the suggestion without deleting anything. Enter then starts a new line. A line right after a blank line gets no next-exercise suggestion.
 
 ## Suggestions
 

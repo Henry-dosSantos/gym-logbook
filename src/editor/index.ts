@@ -4,7 +4,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import type { Settings, Suggestion } from '../core/types';
 import { ghostExtension } from './ghost';
 import { linesField } from './lines';
-import { parsedField, setSettings, settingsField, suggestionField } from './state';
+import { dismissedField, parsedField, setSettings, settingsField, suggestionField } from './state';
 
 export { setSettings };
 
@@ -21,6 +21,7 @@ export function createEditor(opts: {
     selection: { anchor: opts.text.length },
     extensions: [
       settingsField.init(() => opts.settings),
+      dismissedField,
       parsedField,
       suggestionField,
       history(),

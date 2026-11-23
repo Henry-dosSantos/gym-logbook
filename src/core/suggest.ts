@@ -201,6 +201,7 @@ function isActive(entry: Entry, today: Date): boolean {
 function emptyLineGhost(doc: Doc, cur: Entry, line: Line, settings: Settings, today: Date): Ghost | null {
   if (cur.index !== doc.entries.length - 1 || line.text !== '' || line.n === cur.dateLine.n) return null;
   if (!isActive(cur, today)) return null;
+  if (doc.lines[line.n - 2].kind === 'blank') return null;
   if (cur.dateLine.rest === '' && line.n === cur.dateLine.n + 1) return null;
   if (cur.dayKey === null) return null;
   let ref: Entry | null = null;

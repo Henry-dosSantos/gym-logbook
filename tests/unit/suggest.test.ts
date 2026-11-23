@@ -59,6 +59,22 @@ describe('weight progression', () => {
   });
 });
 
+describe('next exercise after a blank line', () => {
+  const today = new Date(2026, 0, 5, 10);
+  const base = '1/1\nPush\nBench-225-5/\nIncline db-80-8/\n\n1/5\nPush\n';
+  const flat = '1/1\nPush\nBench-225-5/\n\n1/5\nPush\n\n';
+
+  it.each([
+    [base, 'Bench'],
+    [base + 'Bench-225-5/\n', 'Incline db'],
+    [base + 'Bench-225-5/\n\n', null],
+    [flat, null],
+    [flat + 'B', 'ench'],
+  ])('%j', (text, expected) => {
+    expect(ghostAt(text, DEFAULT_SETTINGS, today)?.text ?? null).toBe(expected);
+  });
+});
+
 describe('rankDayTypes', () => {
   const days = ['Push', 'Legs', 'Pull', 'Push', 'Legs', 'Pull', 'Push', 'Pull', 'Legs'];
   const doc = parseDoc(days.map((d, i) => `1/${i + 1}\n${d}\nBench-1-1/`).join('\n\n'));
@@ -127,7 +143,8 @@ describe.skipIf(!existsSync(fixturePath))('fixture suggestions', () => {
   });
 
   it('suggests an exercise only in an active entry', () => {
-    expect(ghostAt(F + '\n\n', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))?.text).toBe('Chin ups');
+    expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))?.text).toBe('Chin ups');
+    expect(ghostAt(F + '\n\n', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))).toBeNull();
     expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 23, 1))?.text).toBe('Chin ups');
     expect(ghostAt(F + '\n', DEFAULT_SETTINGS, new Date(2026, 10, 23, 4))).toBeNull();
     expect(ghostAt(F + '\n ', DEFAULT_SETTINGS, new Date(2026, 10, 22, 10))).toBeNull();

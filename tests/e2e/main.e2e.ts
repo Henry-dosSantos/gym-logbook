@@ -115,6 +115,54 @@ test.describe('with the real log', () => {
     await expect.poll(() => stored(page)).toBe(F + '\n\n11/23\nPush\nBench');
   });
 
+  test('skip a prediction', async ({ page }) => {
+    const F = readFixture();
+    const S = F + '\n\n11/23\nPush\n';
+    const toPrefix = async () => {
+      await seed(page, F);
+      for (const s of PREFIX) await act(page, s);
+      await expectGhost(page, 'Bench');
+      await expect.poll(() => stored(page)).toBe(S);
+    };
+
+    await toPrefix();
+    await run(page, [['backspace', null]]);
+    expect(await stored(page)).toBe(S);
+    await run(page, [['enter', null]]);
+    await expect.poll(() => stored(page)).toBe(S + '\n');
+    await run(page, [['type:B', 'ench']]);
+
+    await toPrefix();
+    await run(page, [
+      ['backspace', null],
+      ['backspace', null],
+    ]);
+    await expect.poll(() => stored(page)).toBe(S.slice(0, -1));
+
+    await toPrefix();
+    await run(page, [
+      ['backspace', null],
+      ['type:X', null],
+      ['backspace', 'Bench'],
+    ]);
+    await expect.poll(() => stored(page)).toBe(S);
+
+    await seed(page, F);
+    await run(page, [
+      ['enter', null],
+      ['enter', '11/23'],
+      ['backspace', null],
+    ]);
+    await expect.poll(() => stored(page)).toBe(F + '\n\n');
+    await act(page, 'enter');
+    await expect.poll(() => stored(page)).toBe(F + '\n\n\n');
+
+    await toPrefix();
+    await run(page, [['enter', '-290']]);
+    await act(page, 'backspace');
+    await expect.poll(() => stored(page)).toMatch(/Push\nBenc$/);
+  });
+
   test('ghost details', async ({ page }) => {
     const F = readFixture();
     const base = F + '\n\n11/23\nPush\n';

@@ -3,7 +3,7 @@ import type { Extension } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType, keymap } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import { isolateHistory } from '@codemirror/commands';
-import { suggestionField } from './state';
+import { dismissGhostEffect, suggestionField } from './state';
 
 class GhostWidget extends WidgetType {
   constructor(readonly text: string) {
@@ -77,6 +77,14 @@ export function acceptGhost(view: EditorView): boolean {
   return true;
 }
 
+export function dismissGhost(view: EditorView): boolean {
+  const sel = view.state.selection.main;
+  if (view.composing || !sel.empty || !view.state.field(suggestionField).ghost) return false;
+  if (view.state.doc.lineAt(sel.head).text !== '') return false;
+  view.dispatch({ effects: dismissGhostEffect.of(sel.head) });
+  return true;
+}
+
 export function insertNewline(view: EditorView): boolean {
   view.dispatch({ ...view.state.replaceSelection('\n'), scrollIntoView: true, userEvent: 'input' });
   return true;
@@ -86,7 +94,10 @@ export const ghostExtension: Extension = [
   suggestionField,
   ghostPlugin,
   acceptedField,
-  Prec.highest(keymap.of([{ key: 'Enter', run: v => acceptGhost(v) || insertNewline(v) }])),
+  Prec.highest(keymap.of([
+      { key: 'Enter', run: v => acceptGhost(v) || insertNewline(v) },
+      { key: 'Backspace', run: dismissGhost },
+    ])),
   EditorView.inputHandler.of((view, from, to, text) => {
     if (text !== ' ' || from !== to || view.composing) return false;
     const sel = view.state.selection.main;
