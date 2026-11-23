@@ -1,4 +1,4 @@
-/* Design tokens: #000000 background, #F2F2F2 text, #FFFFFF date, #8A8A8A secondary, rgba(242,242,242,0.30) ghost, #262626 hairline, #161616 pressed, #0A0A0A sheet. Frosted glass only on .glass: rgba(22,22,22,0.55) bar, rgba(10,10,10,0.72) sheet, rgba(0,0,0,0.6) strip, edge rgba(242,242,242,0.10). Sizes 10/13/15/17px, 34px readout. No gradients, shadows or glows. */
+/* Design tokens: #000000 background, #F2F2F2 text, #FFFFFF date, #8A8A8A secondary, rgba(242,242,242,0.30) ghost, #262626 hairline, #161616 pressed, #0A0A0A sheet. Frosted glass only on .glass: rgba(22,22,22,0.55) bar, rgba(10,10,10,0.90) sheet, rgba(0,0,0,0.6) strip, edge rgba(242,242,242,0.10). Sizes 10/13/15/17px, 34px readout. No gradients, shadows or glows. */
 
 :root {
   color-scheme: dark;
@@ -316,7 +316,7 @@ body {
   right: 0;
   top: 100%;
   height: 100vh;
-  background: rgba(10, 10, 10, 0.72);
+  background: rgba(10, 10, 10, 0.9);
 }
 
 .sheet-body.is-flush {
@@ -725,7 +725,7 @@ body {
 }
 
 .sheet.glass {
-  background: rgba(10, 10, 10, 0.72);
+  background: rgba(10, 10, 10, 0.9);
   border-top: 1px solid rgba(242, 242, 242, 0.1);
   -webkit-backdrop-filter: blur(30px) saturate(160%);
   backdrop-filter: blur(30px) saturate(160%);
