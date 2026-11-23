@@ -10,7 +10,7 @@ import { createBar } from './ui/bar';
 import { installTapFlash } from './ui/flash';
 import { playIntro } from './ui/intro';
 import { createStrip } from './ui/strip';
-import { trackViewport } from './viewport';
+import { hideBarBeforeKeyboard, trackViewport } from './viewport';
 
 const SAVE_DELAY = 300;
 
@@ -79,6 +79,7 @@ async function boot(): Promise<void> {
   bar.setFlagCount(view.state.field(parsedField).flags.length);
   app.append(editorHost, toolbar.el, bar.el);
   installTapFlash(app, editorHost, view);
+  hideBarBeforeKeyboard(app, editorHost);
   trackViewport(app, () => {
     if (view.hasFocus) requestAnimationFrame(() => scrollCaretIntoView(view));
   });

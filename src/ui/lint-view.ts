@@ -1,6 +1,6 @@
 import { isolateHistory } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
-import { ArrowRight, ChevronDown, ChevronUp, X } from 'lucide';
+import { ChevronDown, ChevronUp, X } from 'lucide';
 import type { IconNode } from 'lucide';
 import { suggestFix } from '../core/fix';
 import { clearFocusLine, focusLine } from '../editor/focus-line';
@@ -44,16 +44,15 @@ export function lintPanel(ctx: AppContext): LintPanel {
   const head = el('div', 'lint-head');
   head.append(count, iconButton('close', 'Close', X, () => closeSheet()));
 
+  // The flag being looked at gets the whole visible half: big, spaced, readable. The list starts below the fold.
   const card = el('div', 'lint-card');
-  const top = el('div', 'lint-top');
-  const num = el('span', 'lint-num');
-  const msg = el('span', 'lint-msg');
-  top.append(num, msg);
+  const num = el('div', 'lint-num');
+  const msg = el('div', 'lint-msg');
   const now = el('div', 'lint-text');
-  const fixLine = el('div', 'lint-fix');
-  const fixText = el('span', 'lint-fix-text');
-  fixLine.append(icon(ArrowRight, 14), fixText);
-  card.append(top, now, fixLine);
+  const fixBlock = el('div', 'lint-change');
+  const fixText = el('div', 'lint-fix-text');
+  fixBlock.append(el('div', 'lint-label', 'Change to'), fixText);
+  card.append(num, msg, el('div', 'lint-label', 'Now'), now, fixBlock);
 
   const apply = button('btn btn-accept', 'apply', 'Fix', () => applyFix());
   const actions = el('div', 'lint-actions');
@@ -63,6 +62,9 @@ export function lintPanel(ctx: AppContext): LintPanel {
     button('btn', 'edit', 'Edit', () => edit()),
     apply,
   );
+
+  const focus = el('div', 'lint-focus');
+  focus.append(card, actions);
 
   const list = el('div', 'lint-list');
   const empty = el('div', 'empty', 'No flags');
@@ -83,7 +85,7 @@ export function lintPanel(ctx: AppContext): LintPanel {
     msg.textContent = flag.message;
     now.textContent = doc.lines[flag.line - 1].text;
     const fix = fixFor(flag.line);
-    fixLine.hidden = fix === null;
+    fixBlock.hidden = fix === null;
     fixText.textContent = fix ?? '';
     apply.disabled = fix === null;
     card.dataset.line = String(flag.line);
@@ -101,9 +103,9 @@ export function lintPanel(ctx: AppContext): LintPanel {
       return row;
     });
     list.replaceChildren(...rows);
-    if (root.firstChild !== head || root.childElementCount !== 5)
-      root.replaceChildren(head, card, actions, el('div', 'section-label', 'All flags'), list);
-    focusLine(view, flag.line);
+    if (root.firstChild !== head || root.childElementCount !== 4)
+      root.replaceChildren(head, focus, el('div', 'section-label', 'All flags'), list);
+    focusLine(view, flag.line, fix);
     if (fade && !reduced()) card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'linear' });
   };
 
@@ -164,7 +166,7 @@ export function lintPanel(ctx: AppContext): LintPanel {
       // The log gains bottom room for the panel; jump again once that has been laid out.
       requestAnimationFrame(() => {
         const flag = flags()[current];
-        if (open && flag) focusLine(view, flag.line);
+        if (open && flag) focusLine(view, flag.line, fixFor(flag.line));
       });
       document.addEventListener('keydown', onKey);
       view.contentDOM.addEventListener('focus', onEditorFocus);

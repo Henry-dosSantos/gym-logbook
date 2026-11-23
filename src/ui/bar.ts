@@ -7,7 +7,6 @@ import { platform } from '../platform';
 import { dashboardView } from './dashboard';
 import { el, icon } from './dom';
 import { lintPanel } from './lint-view';
-import { pressable } from './press';
 import { settingsView } from './settings-view';
 import type { AppContext } from './settings-view';
 import { openSheet } from './sheet';
@@ -34,6 +33,8 @@ const TABS: TabDef[] = [
 ];
 
 const DONE_MS = 1200;
+const SLIDE_SLOP = 64;
+const CLICK_SWALLOW_MS = 600;
 
 export function createBar(ctx: AppContext): Bar {
   const nav = el('nav', 'tabbar glass');
@@ -115,11 +116,98 @@ export function createBar(ctx: AppContext): Bar {
     }
     inner.append(iconWrap, el('span', 'tab-label', def.label));
     tab.append(inner);
-    pressable(tab);
-    tab.addEventListener('click', () => handlers[def.action](tab));
+    // Taps and slides are handled on the bar below; click stays for keyboard activation.
+    tab.addEventListener('click', () => {
+      if (!suppressClick) handlers[def.action](tab);
+    });
     tabs.set(def.action, tab);
     nav.append(tab);
   }
+
+  // Hold anywhere on the bar and slide: the pill follows the finger from tab to tab and letting go opens the
+  // tab under it, so a wrong tap can be corrected before it lands. Sliding well off the bar cancels.
+  const pill = el('div', 'tab-pill');
+  nav.prepend(pill);
+  let pointer = -1;
+  let current: HTMLButtonElement | null = null;
+  let suppressClick = false;
+  let swallowUntil = 0;
+
+  const tabAt = (x: number, y: number): HTMLButtonElement | null => {
+    const r = nav.getBoundingClientRect();
+    if (y < r.top - SLIDE_SLOP || y > r.bottom + SLIDE_SLOP) return null;
+    const list = [...tabs.values()];
+    if (x < r.left) return list[0];
+    if (x >= r.right) return list[list.length - 1];
+    return list.find(t => {
+      const b = t.getBoundingClientRect();
+      return x >= b.left && x < b.right;
+    }) ?? null;
+  };
+
+  const highlight = (tab: HTMLButtonElement | null) => {
+    const was = current;
+    if (was === tab) return;
+    was?.classList.remove('is-pressed');
+    current = tab;
+    if (!tab) {
+      pill.classList.remove('is-on');
+      return;
+    }
+    tab.classList.add('is-pressed');
+    const move = `translateX(${tab.offsetLeft}px)`;
+    pill.style.width = `${tab.offsetWidth}px`;
+    if (!was) {
+      // Appear in place, then glide between tabs.
+      pill.style.transition = 'none';
+      pill.style.transform = move;
+      void pill.offsetWidth;
+      pill.style.transition = '';
+      pill.classList.add('is-on');
+    } else {
+      pill.style.transform = move;
+      platform.haptic();
+    }
+  };
+
+  nav.addEventListener('pointerdown', e => {
+    const tab = (e.target as Element).closest<HTMLButtonElement>('.tab');
+    if (!tab || !e.isPrimary) return;
+    pointer = e.pointerId;
+    nav.setPointerCapture(e.pointerId);
+    highlight(tab);
+  });
+  nav.addEventListener('pointermove', e => {
+    if (e.pointerId === pointer) highlight(tabAt(e.clientX, e.clientY));
+  });
+  nav.addEventListener('pointerup', e => {
+    if (e.pointerId !== pointer) return;
+    pointer = -1;
+    const tab = current;
+    highlight(null);
+    if (!tab) return;
+    // The browser's own click for this touch comes after pointerup and would land on whatever just opened
+    // (a sheet's scrim closes the sheet). Swallow that one click.
+    suppressClick = true;
+    swallowUntil = performance.now() + CLICK_SWALLOW_MS;
+    handlers[tab.dataset.action!](tab);
+  });
+  document.addEventListener(
+    'click',
+    e => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      if (performance.now() > swallowUntil) return;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    true,
+  );
+  nav.addEventListener('pointercancel', e => {
+    if (e.pointerId !== pointer) return;
+    pointer = -1;
+    highlight(null);
+  });
 
   return {
     el: nav,

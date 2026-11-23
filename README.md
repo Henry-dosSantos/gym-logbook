@@ -67,13 +67,13 @@ The log lives only on the device, in IndexedDB. Use Copy all in the bar to keep 
 
 ## Bar
 
-The frosted bar at the bottom has six buttons: Dashboard, Copy day, Copy all, Paste, Lint and Settings. It hides while the keyboard is open. Copy and paste show a check mark when they finish.
+The frosted bar at the bottom has six buttons: Dashboard, Copy day, Copy all, Paste, Lint and Settings. Hold a finger on it and slide left or right: the highlight follows your finger and letting go opens the button under it, so a wrong tap can be corrected before it lands (slide well off the bar to cancel). It hides the moment you tap into the log, before the keyboard comes up, and returns when the keyboard goes away. Copy and paste show a check mark when they finish.
 
 Dashboard and Settings open a sheet that rises to half the screen. Pull it up by the handle (or anywhere on it while it is at half height) to make it full screen; pull it down to go back to half or close it. Tapping a text field makes it full screen.
 
 ## Lint
 
-Lint in the bar opens a panel on the bottom half of the screen and leaves the log visible above it. It lists lines the parser could not make sense of (dates out of order, a wrong year, sets with no exercise name, a missing dash, a bad number). The log jumps to the flag you are on and highlights the line, so you can see it in context. Fix applies the suggested change and moves to the next flag (Enter does the same on a hardware keyboard); the arrows step through the flags; Edit closes the panel with the cursor at the end of that line. Tapping the log, the close button, or pulling the panel down closes it. Nothing changes unless you confirm.
+Lint in the bar opens a panel on the bottom half of the screen and leaves the log visible above it. It shows one flag at a time in large type: what is wrong, the line as it is now, and the suggested change. The log jumps to that line and highlights it, with the fix after it (→ …), so the eye lands on it. Fix applies the suggestion and moves to the next flag (Enter does the same on a hardware keyboard); the arrows step through the flags; Edit closes the panel with the cursor at the end of that line. The full list of flags is below, a scroll down. Tapping the log, the close button, or pulling the panel down closes it. Nothing changes unless you confirm. Flags it looks for: dates out of order, a wrong year, sets with no exercise name, a missing dash, a bad number.
 
 ## Dashboard
 

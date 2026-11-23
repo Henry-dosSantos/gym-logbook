@@ -172,11 +172,24 @@ test.describe('bar', () => {
       await expect(page.locator('.scrim')).toHaveCount(0);
       expect(Math.abs((await page.locator('.sheet').boundingBox())!.y - 426)).toBeLessThanOrEqual(12);
       await expect(page.locator('.lint-count')).toHaveText('1 of 18');
-      await expect(page.locator('.lint-card .lint-top')).toContainText('Line 100');
+      await expect(page.locator('.lint-card .lint-num')).toHaveText('Line 100');
+      await expect(page.locator('.lint-card .lint-msg')).toHaveText('Bad number');
+      await expect(page.locator('.lint-card .lint-text')).toHaveCSS('font-size', '17px');
+      await expect(page.locator('.lint-card .lint-fix-text')).toHaveText(FIXES[100]);
+      await expect(page.locator('.lint-card .lint-fix-text')).toHaveCSS('font-size', '17px');
+      // The flag fills the visible half; the list starts below the bottom of the screen.
+      const label = (await page.locator('.lint .section-label').boundingBox())!;
+      expect(label.y).toBeGreaterThanOrEqual(852 - 1);
+      const apply = (await page.locator('[data-action=apply]').boundingBox())!;
+      expect(apply.y + apply.height).toBeLessThanOrEqual(852);
+      expect(apply.height).toBe(50);
 
       const focused = page.locator('.cm-l-focus');
       await expect(focused).toHaveCount(1);
       await expect(focused).toHaveText('Back extensions-270-6/270-5/250q-6/');
+      await expect(focused).toHaveAttribute('data-fix', `→ ${FIXES[100]}`);
+      expect(await focused.evaluate(e => getComputedStyle(e, '::after').content)).toBe(`"  " "→ ${FIXES[100]}"`);
+      await expect(focused).toHaveCSS('background-color', 'rgb(38, 38, 38)');
       const inTopHalf = async () => {
         const box = (await focused.boundingBox())!;
         return box.y > 0 && box.y + box.height < 426;
@@ -196,7 +209,12 @@ test.describe('bar', () => {
       await expect.poll(inTopHalf).toBe(true);
       await expect(page.locator('.lint-row[data-line="1424"]')).toHaveAttribute('aria-current', 'true');
       await expect.poll(async () => (await page.locator('[data-action=apply]').boundingBox())!.y).toBeGreaterThan(426);
-      await expect.poll(async () => (await page.locator('[data-action=apply]').boundingBox())!.y).toBeLessThan(700);
+      await expect
+        .poll(async () => {
+          const b = (await page.locator('[data-action=apply]').boundingBox())!;
+          return b.y + b.height;
+        })
+        .toBeLessThanOrEqual(852);
 
       await page.locator('[data-action=close]').tap();
       await expect(page.locator('.sheet')).toHaveCount(0);
@@ -356,6 +374,50 @@ test.describe('bar', () => {
     await page.mouse.up();
     await page.waitForTimeout(100);
     await expect(page.locator('.tap-flash')).toHaveCount(0);
+  });
+
+  test('hold on the tab bar and slide to pick another tab', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await seed(page, readFixture());
+    const from = (await page.locator('.tabbar [data-action=dashboard]').boundingBox())!;
+    const to = (await page.locator('.tabbar [data-action=settings]').boundingBox())!;
+    const y = from.y + from.height / 2;
+    await page.mouse.move(from.x + from.width / 2, y);
+    await page.mouse.down();
+    await expect(page.locator('.tab-pill')).toHaveClass(/is-on/);
+    for (let i = 1; i <= 8; i++) await page.mouse.move(from.x + from.width / 2 + ((to.x - from.x) * i) / 8, y);
+    await expect(page.locator('.tabbar [data-action=settings]')).toHaveClass(/is-pressed/);
+    await expect(page.locator('.tabbar [data-action=dashboard]')).not.toHaveClass(/is-pressed/);
+    await page.waitForTimeout(250);
+    const pill = (await page.locator('.tab-pill').boundingBox())!;
+    expect(Math.abs(pill.x - to.x)).toBeLessThanOrEqual(1);
+    await page.mouse.up();
+    await page.locator('[data-action=exercises]').waitFor();
+    await expect(page.locator('.sheet')).toHaveAttribute('aria-label', 'Settings');
+    await expect(page.locator('.tab-pill')).not.toHaveClass(/is-on/);
+  });
+
+  test('sliding off the tab bar cancels', async ({ page }) => {
+    await open(page);
+    const tab = (await page.locator('.tabbar [data-action=dashboard]').boundingBox())!;
+    await page.mouse.move(tab.x + tab.width / 2, tab.y + tab.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(tab.x + tab.width / 2, tab.y - 200, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await expect(page.locator('.sheet')).toHaveCount(0);
+  });
+
+  test('tapping into the log hides the bar at once, before the keyboard', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    await seed(page, readFixture());
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.touchscreen.tap(196, 300);
+    await expect(page.locator('#app')).toHaveClass(/kb-pending/);
+    await expect(page.locator('.tabbar')).toHaveCSS('opacity', '0');
+    // No keyboard in the emulator: the bar comes back.
+    await expect(page.locator('#app')).not.toHaveClass(/kb-pending/, { timeout: 2000 });
+    await expect(page.locator('.tabbar')).toHaveCSS('opacity', '1');
   });
 
   test('tab bar sits low and settings steppers are large', async ({ page }) => {

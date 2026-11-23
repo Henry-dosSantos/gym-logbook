@@ -73,6 +73,7 @@ export function openSheet(opts: {
     offset = target === 'large' ? 0 : mediumOffset();
     sheet.dataset.detent = target;
     sheet.style.setProperty('--sheet-offset', `${offset}px`);
+    sheet.style.setProperty('--sheet-visible', `${height() - offset}px`);
   };
 
   const moveTo = (target: 'medium' | 'large', from: number) => {
