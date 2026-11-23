@@ -49,6 +49,16 @@ The log lives only on the device, in IndexedDB. Use menu, Copy all or Export to 
 
 Menu, Lint lists lines the parser could not make sense of (dates out of order, a wrong year, sets with no exercise name, a missing dash, a bad number). Tap one to jump to it. Nothing is ever fixed automatically.
 
+## Platform adapter
+
+Storage, clipboard, share/export and haptics go through one interface, `Platform` in `src/platform/index.ts`. The web implementation is `src/platform/web.ts` (IndexedDB, Clipboard API, Web Share with a download fallback, `navigator.vibrate`, service worker registration). To wrap the app natively, write another implementation of `Platform` and change the one export in `src/platform/index.ts`. The editor, parser and suggestion engine never touch these APIs.
+
+- `start`: one-time setup.
+- `load`, `save`: key-value store for JSON-serializable values (keys `text`, `settings`).
+- `copy`: must run synchronously inside a user gesture.
+- `share`: receives the log as .txt and the settings as .json and resolves when the user cancels.
+- `haptic`: light tap, no-op where unsupported.
+
 ## Development
 
 ```

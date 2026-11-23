@@ -3,6 +3,7 @@ import { EditorView } from '@codemirror/view';
 import { Ellipsis } from 'lucide';
 import { entryText } from '../core/history';
 import { exportFiles } from '../export';
+import { platform } from '../platform';
 import { parsedField } from '../editor/state';
 import { button, el, icon } from './dom';
 import { pressable } from './press';
@@ -10,57 +11,6 @@ import { openSheet } from './sheet';
 import type { SheetHandle } from './sheet';
 import { settingsView } from './settings-view';
 import type { AppContext } from './settings-view';
-
-function fallbackCopy(text: string): void {
-  const area = document.createElement('textarea');
-  area.value = text;
-  area.setAttribute('readonly', '');
-  area.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-  document.body.append(area);
-  area.select();
-  try {
-    document.execCommand('copy');
-  } catch {
-    // copy is best effort
-  }
-  area.remove();
-}
-
-function copyText(text: string): void {
-  let pending: Promise<void> | undefined;
-  try {
-    pending = navigator.clipboard?.writeText(text);
-  } catch {
-    pending = undefined;
-  }
-  if (!pending) fallbackCopy(text);
-  else pending.catch(() => fallbackCopy(text));
-}
-
-async function share(text: string, ctx: AppContext): Promise<void> {
-  const files = exportFiles(text, ctx.getSettings(), new Date());
-  const made = files.map(f => new File([f.content], f.name, { type: f.type }));
-  try {
-    if (navigator.canShare?.({ files: made })) await navigator.share({ files: made });
-    else if (navigator.canShare?.({ files: [made[0]] })) await navigator.share({ files: [made[0]] });
-    else download(made);
-  } catch (e) {
-    if (!(e instanceof DOMException && e.name === 'AbortError')) throw e;
-  }
-}
-
-function download(files: File[]): void {
-  for (const file of files) {
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-}
 
 function importView(ctx: AppContext, sheet: () => SheetHandle): HTMLElement {
   const root = el('div', 'import');
@@ -158,19 +108,19 @@ function openMenu(ctx: AppContext): void {
   };
 
   row('copy-all', 'Copy all', () => {
-    copyText(view.state.doc.toString());
+    platform.copy(view.state.doc.toString());
     ctx.flushText();
     sheet.close();
   });
   row('copy-entry', 'Copy entry', () => {
     const text = entryText(view.state.field(parsedField), view.state.selection.main.head);
-    if (text !== null) copyText(text);
+    if (text !== null) platform.copy(text);
     sheet.close();
   });
   row('export', 'Export', () => {
     const text = view.state.doc.toString();
     sheet.close();
-    void share(text, ctx);
+    void platform.share(exportFiles(text, ctx.getSettings(), new Date()));
   });
   row('import', 'Import', () => sub('Import', () => importView(ctx, get)));
   row('lint', 'Lint', () => sub('Lint', () => lintView(ctx, get)), flagCount ? String(flagCount) : undefined);

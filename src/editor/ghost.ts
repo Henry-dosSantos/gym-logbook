@@ -74,11 +74,6 @@ export function acceptGhost(view: EditorView): boolean {
   setTimeout(() => {
     if (view.dom.isConnected) view.dispatch({ effects: clearAccepted.of(null) });
   }, 160);
-  try {
-    navigator.vibrate?.(8);
-  } catch {
-    // no haptics available
-  }
   return true;
 }
 

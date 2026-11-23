@@ -14,6 +14,7 @@ export function createEditor(opts: {
   settings: Settings;
   onChange(text: string): void;
   onSuggestion(s: Suggestion): void;
+  onAccept(): void;
 }): EditorView {
   const state = EditorState.create({
     doc: opts.text,
@@ -36,6 +37,7 @@ export function createEditor(opts: {
       EditorView.theme({}, { dark: true }),
       EditorView.updateListener.of(u => {
         if (u.docChanged) opts.onChange(u.state.doc.toString());
+        if (u.transactions.some(tr => tr.isUserEvent('input.complete'))) opts.onAccept();
         if (u.state.field(suggestionField) !== u.startState.field(suggestionField)) {
           opts.onSuggestion(u.state.field(suggestionField));
         }

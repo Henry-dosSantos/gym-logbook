@@ -4,7 +4,7 @@ import './styles.css';
 import { DEFAULT_SETTINGS } from './core/settings';
 import type { Settings } from './core/types';
 import { createEditor, setSettings } from './editor';
-import { loadValue, saveValue } from './storage';
+import { platform } from './platform';
 import { createMenuButton } from './ui/menu';
 import { createToolbar } from './ui/toolbar';
 import { trackViewport } from './viewport';
@@ -32,21 +32,17 @@ function debounced(save: () => void): { schedule(): void; flush(): void; pending
 }
 
 async function boot(): Promise<void> {
-  try {
-    void navigator.storage?.persist?.().catch(() => undefined);
-  } catch {
-    // persistence is best effort
-  }
+  platform.start();
 
-  const text = (await loadValue<string>('text').catch(() => undefined)) ?? '';
-  let settings = (await loadValue<Settings>('settings').catch(() => undefined)) ?? DEFAULT_SETTINGS;
+  const text = (await platform.load<string>('text').catch(() => undefined)) ?? '';
+  let settings = (await platform.load<Settings>('settings').catch(() => undefined)) ?? DEFAULT_SETTINGS;
 
   const app = document.getElementById('app')!;
   const editorHost = document.createElement('div');
   editorHost.className = 'editor';
 
-  const textSaver = debounced(() => void saveValue('text', view.state.doc.toString()).catch(() => undefined));
-  const settingsSaver = debounced(() => void saveValue('settings', settings).catch(() => undefined));
+  const textSaver = debounced(() => void platform.save('text', view.state.doc.toString()).catch(() => undefined));
+  const settingsSaver = debounced(() => void platform.save('settings', settings).catch(() => undefined));
 
   const toolbar = createToolbar(() => view);
   const view = createEditor({
@@ -55,6 +51,7 @@ async function boot(): Promise<void> {
     settings,
     onChange: () => textSaver.schedule(),
     onSuggestion: s => toolbar.setStrip(s.strip),
+    onAccept: () => platform.haptic(),
   });
 
   const menuButton = createMenuButton({
@@ -66,7 +63,7 @@ async function boot(): Promise<void> {
       settingsSaver.schedule();
     },
     flushText() {
-      void saveValue('text', view.state.doc.toString()).catch(() => undefined);
+      void platform.save('text', view.state.doc.toString()).catch(() => undefined);
     },
     flushSettings: settingsSaver.flush,
   });
@@ -83,10 +80,6 @@ async function boot(): Promise<void> {
     if (document.visibilityState === 'hidden') flushAll();
   });
   window.addEventListener('pagehide', flushAll);
-
-  if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(() => undefined);
-  }
 }
 
 void boot();
