@@ -116,6 +116,34 @@ test.describe('settings', () => {
     await expect.poll(async () => 'incline db' in ((await storedSettings(page))?.exercises ?? {})).toBe(false);
   });
 
+  test('reset all custom rules', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('[data-action=exercises]').tap();
+    await expect(page.locator(`${TOP} [data-action=reset-all]`)).toBeHidden();
+    await page.locator('.nav-row[data-key="incline db"]').tap();
+    await expect(page.locator(`${TOP} [data-action=reset]`)).toBeHidden();
+    await step(page, 'increment', 'up', 2);
+    await expect(page.locator(`${TOP} [data-action=reset]`)).toHaveText('Reset to default');
+    await page.locator(`${TOP} [data-action=back]`).tap();
+    await page.waitForTimeout(450);
+
+    const resetAll = page.locator(`${TOP} [data-action=reset-all]`);
+    await expect(resetAll).toHaveText('Reset all to default');
+    await resetAll.tap();
+    await expect(page.locator(`${TOP} .confirm-text`)).toHaveText('Reset every custom rule?');
+    await expect(resetAll).toBeHidden();
+    await page.locator(`${TOP} [data-action=cancel-reset]`).tap();
+    await expect(page.locator(`${TOP} .confirm-text`)).toBeHidden();
+    await expect(page.locator('.nav-row[data-key="incline db"] .nav-value')).toHaveText('+10 lb');
+
+    await resetAll.tap();
+    await page.locator(`${TOP} [data-action=confirm-reset]`).tap();
+    await expect.poll(async () => (await storedSettings(page))?.exercises).toEqual({});
+    await expect(page.locator(`${TOP} .nav-value.bright`).filter({ hasText: /./ })).toHaveCount(0);
+    await expect(resetAll).toBeHidden();
+    await expect(page.locator(`${TOP} .confirm-text`)).toBeHidden();
+  });
+
   test('merged names', async ({ page }) => {
     await openSettings(page);
     await page.locator('[data-action=names]').tap();

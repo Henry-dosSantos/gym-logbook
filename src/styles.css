@@ -28,7 +28,7 @@ body {
 .editor {
   flex: 1;
   min-height: 0;
-  padding-top: var(--top, 0px);
+  padding-top: 0;
   box-sizing: border-box;
 }
 
@@ -54,7 +54,7 @@ body {
 }
 
 .cm-editor .cm-content {
-  padding: 8px calc(20px + env(safe-area-inset-right)) calc(104px + env(safe-area-inset-bottom))
+  padding: calc(var(--top, 0px) + 8px) calc(20px + env(safe-area-inset-right)) calc(104px + env(safe-area-inset-bottom))
     calc(20px + env(safe-area-inset-left));
   caret-color: #f2f2f2;
 }
@@ -177,7 +177,7 @@ body {
   right: 0;
   bottom: 0;
   z-index: 3;
-  max-height: 85%;
+  height: calc(100% - var(--top, 0px) - 8px);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -189,6 +189,8 @@ body {
 
 .sheet-head {
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .sheet-grip {
@@ -218,6 +220,21 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 12px 12px;
+}
+
+.sheet-body:not(.is-flush) {
+  padding-bottom: calc(24px + var(--sheet-offset, 0px));
+}
+
+.sheet[data-detent='medium'] {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sheet[data-detent='medium'] .sheet-body,
+.sheet[data-detent='medium'] .stack-page {
+  overflow: hidden;
 }
 
 .row {
@@ -302,11 +319,6 @@ body {
   background: rgba(10, 10, 10, 0.72);
 }
 
-.sheet.is-full {
-  height: calc(100% - var(--top, 0px) - 8px);
-  max-height: none;
-}
-
 .sheet-body.is-flush {
   position: relative;
   padding: 0;
@@ -343,7 +355,8 @@ body {
 
 .dash-latest {
   flex: none;
-  min-width: 56px;
+  min-width: 88px;
+  white-space: nowrap;
   text-align: right;
   font-size: 15px;
 }
@@ -459,8 +472,26 @@ body {
   opacity: 0.3;
 }
 
-.chart-wrap {
-  min-height: 200px;
+.chart-area {
+  touch-action: pan-y;
+}
+
+.chart-label {
+  font-size: 13px;
+  color: #8a8a8a;
+  padding: 4px 8px 0;
+}
+
+.dash-note,
+.dash-footer {
+  font-size: 13px;
+  color: #8a8a8a;
+  padding: 16px 8px 0;
+}
+
+.dash-note {
+  font-size: 15px;
+  min-height: 168px;
 }
 
 .chart {
@@ -510,6 +541,17 @@ body {
   color: #8a8a8a;
 }
 
+.recent-est {
+  width: 6ch;
+  flex: none;
+  color: #f2f2f2;
+}
+
+.recent-from {
+  color: #8a8a8a;
+  white-space: nowrap;
+}
+
 .recent-sets {
   white-space: nowrap;
   overflow: hidden;
@@ -531,7 +573,7 @@ body {
   inset: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 12px 24px;
+  padding: 0 12px calc(24px + var(--sheet-offset, 0px));
 }
 
 .dash-items {
@@ -922,4 +964,20 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 16px;
+}
+
+.confirm {
+  padding: 8px 8px 16px;
+}
+
+.confirm-text {
+  font-size: 15px;
+  color: #8a8a8a;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
 }

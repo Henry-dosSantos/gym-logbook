@@ -1,12 +1,13 @@
 export interface SheetHandle {
   close(): void;
-  setContent(label: string, content: HTMLElement, opts?: { full?: boolean; flush?: boolean }): void;
 }
 
 export const EASE_IOS = 'cubic-bezier(0.32, 0.72, 0, 1)';
-const DURATION = 220;
-const EASING = 'cubic-bezier(0.2,0.8,0.2,1)';
+const DISMISS_EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+const MOVE_MS = 320;
 const SCRIM_OPACITY = 0.4;
+const DRAG_START = 6;
+const FLING = 0.5;
 export const reduced = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let current: SheetHandle | null = null;
@@ -14,7 +15,6 @@ let current: SheetHandle | null = null;
 export function openSheet(opts: {
   label: string;
   content: HTMLElement;
-  full?: boolean;
   flush?: boolean;
   onClose?(): void;
 }): SheetHandle {
@@ -25,7 +25,7 @@ export function openSheet(opts: {
   const scrim = document.createElement('div');
   scrim.className = 'scrim';
   const sheet = document.createElement('div');
-  sheet.className = opts.full ? 'sheet glass is-full' : 'sheet glass';
+  sheet.className = 'sheet glass';
   sheet.setAttribute('role', 'dialog');
   sheet.setAttribute('aria-modal', 'true');
   sheet.setAttribute('aria-label', opts.label);
@@ -49,101 +49,193 @@ export function openSheet(opts: {
   app.append(scrim, sheet);
 
   let closed = false;
-  const animate = (
-    el: HTMLElement,
-    frames: Keyframe[],
-    duration = DURATION,
-    easing = EASING,
-    fill: FillMode = 'none',
-  ) => (reduced() ? null : el.animate(frames, { duration, easing, fill }));
+  let detent: 'medium' | 'large' = 'medium';
+  let offset = 0;
+  let animation: Animation | null = null;
 
-  animate(sheet, [{ transform: 'translateY(100%)' }, { transform: 'translateY(0)' }]);
-  animate(scrim, [{ opacity: 0 }, { opacity: SCRIM_OPACITY }]);
+  const height = () => sheet.offsetHeight;
+  const mediumOffset = () => Math.max(0, height() - 0.5 * app.clientHeight);
+
+  const animate = (el: HTMLElement, frames: Keyframe[], duration: number, easing: string, fill: FillMode = 'none') =>
+    reduced() ? null : el.animate(frames, { duration, easing, fill });
+
+  const place = (y: number) => {
+    sheet.style.transform = `translateY(${y}px)`;
+  };
+
+  const rest = (target: 'medium' | 'large') => {
+    detent = target;
+    offset = target === 'large' ? 0 : mediumOffset();
+    sheet.dataset.detent = target;
+    sheet.style.setProperty('--sheet-offset', `${offset}px`);
+  };
+
+  const moveTo = (target: 'medium' | 'large', from: number) => {
+    animation?.cancel();
+    rest(target);
+    place(offset);
+    animation = animate(
+      sheet,
+      [{ transform: `translateY(${from}px)` }, { transform: `translateY(${offset}px)` }],
+      MOVE_MS,
+      EASE_IOS,
+    );
+    scrim.style.opacity = '';
+  };
+
+  const scrimAt = (y: number) => {
+    const m = mediumOffset();
+    const span = Math.max(1, height() - m);
+    return SCRIM_OPACITY * (1 - Math.min(1, Math.max(0, y - m) / span));
+  };
+
+  rest('medium');
+  place(offset);
+  animation = animate(
+    sheet,
+    [{ transform: `translateY(${height()}px)` }, { transform: `translateY(${offset}px)` }],
+    MOVE_MS,
+    EASE_IOS,
+  );
+  animate(scrim, [{ opacity: 0 }, { opacity: SCRIM_OPACITY }], MOVE_MS, EASE_IOS);
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') handle.close();
   };
   document.addEventListener('keydown', onKey);
 
+  const relayout = () => {
+    if (closed) return;
+    rest(detent);
+    place(offset);
+  };
+  window.addEventListener('resize', relayout);
+  window.visualViewport?.addEventListener('resize', relayout);
+
   const finish = () => {
     scrim.remove();
     sheet.remove();
     document.removeEventListener('keydown', onKey);
+    window.removeEventListener('resize', relayout);
+    window.visualViewport?.removeEventListener('resize', relayout);
     if (current === handle) current = null;
     opts.onClose?.();
   };
 
-  const dismiss = (from: string, duration = DURATION, scrimFrom = SCRIM_OPACITY) => {
+  const dismiss = (from: number, duration = MOVE_MS, scrimFrom = SCRIM_OPACITY) => {
     if (closed) return;
     closed = true;
-    const a = animate(sheet, [{ transform: from }, { transform: 'translateY(100%)' }], duration, EASING, 'forwards');
-    const b = animate(scrim, [{ opacity: scrimFrom }, { opacity: 0 }], duration, EASING, 'forwards');
+    animation?.cancel();
+    const h = height();
+    const a = animate(
+      sheet,
+      [{ transform: `translateY(${from}px)` }, { transform: `translateY(${h}px)` }],
+      duration,
+      DISMISS_EASING,
+      'forwards',
+    );
+    const b = animate(scrim, [{ opacity: scrimFrom }, { opacity: 0 }], duration, DISMISS_EASING, 'forwards');
     if (a && b) a.finished.then(finish, finish);
     else finish();
   };
 
-  const handle: SheetHandle = {
-    close: () => dismiss('translateY(0)'),
-    setContent(label, content, options = {}) {
-      const before = sheet.getBoundingClientRect().height;
-      sheet.setAttribute('aria-label', label);
-      title.textContent = label;
-      sheet.classList.toggle('is-full', !!options.full);
-      body.classList.toggle('is-flush', !!options.flush);
-      body.replaceChildren(content);
-      const after = sheet.getBoundingClientRect().height;
-      if (before !== after) {
-        animate(sheet, [{ transform: `translateY(${after - before}px)` }, { transform: 'translateY(0)' }], 320, EASE_IOS);
-      }
-      animate(content, [{ opacity: 0 }, { opacity: 1 }], 180, 'linear');
-    },
-  };
+  const handle: SheetHandle = { close: () => dismiss(offset) };
   current = handle;
 
   scrim.addEventListener('click', () => handle.close());
 
+  sheet.addEventListener('focusin', e => {
+    const t = e.target as HTMLElement;
+    if (detent === 'medium' && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) moveTo('large', offset);
+  });
+
   let startY = 0;
+  let startOffset = 0;
+  let pointer = -1;
   let dragging = false;
+  let fromHead = false;
+  let swallow = false;
   let samples: { t: number; y: number }[] = [];
-  const offset = (y: number) => Math.max(0, y - startY);
-  const scrimAt = (dy: number) => SCRIM_OPACITY * Math.max(0, 1 - dy / sheet.offsetHeight);
-  head.addEventListener('pointerdown', e => {
-    if (closed) return;
-    dragging = true;
+
+  const visual = (clientY: number) => {
+    const raw = startOffset + (clientY - startY);
+    return raw < 0 ? raw / 4 : Math.min(raw, height());
+  };
+
+  sheet.addEventListener('pointerdown', e => {
+    if (closed || !e.isPrimary) return;
+    fromHead = head.contains(e.target as Node);
+    if (!fromHead && (detent !== 'medium' || (e.target as Element).closest('[data-no-drag]'))) return;
+    pointer = e.pointerId;
     startY = e.clientY;
+    startOffset = offset;
+    dragging = false;
     samples = [{ t: e.timeStamp, y: e.clientY }];
-    head.setPointerCapture(e.pointerId);
+    if (fromHead) {
+      dragging = true;
+      sheet.setPointerCapture(e.pointerId);
+      animation?.cancel();
+    }
   });
-  head.addEventListener('pointermove', e => {
-    if (!dragging) return;
+
+  sheet.addEventListener('pointermove', e => {
+    if (e.pointerId !== pointer) return;
+    if (!dragging) {
+      if (Math.abs(e.clientY - startY) <= DRAG_START) return;
+      dragging = true;
+      startY = e.clientY;
+      sheet.setPointerCapture(e.pointerId);
+      animation?.cancel();
+    }
     samples.push({ t: e.timeStamp, y: e.clientY });
-    const dy = offset(e.clientY);
-    sheet.style.transform = `translateY(${dy}px)`;
-    scrim.style.opacity = String(scrimAt(dy));
+    const y = visual(e.clientY);
+    place(y);
+    scrim.style.opacity = String(scrimAt(y));
   });
+
   const release = (e: PointerEvent) => {
+    if (e.pointerId !== pointer) return;
+    pointer = -1;
     if (!dragging) return;
     dragging = false;
-    const height = sheet.offsetHeight;
-    const dy = offset(e.clientY);
+    swallow = true;
+    window.setTimeout(() => (swallow = false), 0);
+    const y = visual(e.clientY);
     const recent = samples.filter(s => e.timeStamp - s.t <= 100);
     const first = recent[0] ?? samples[0];
     const dt = e.timeStamp - first.t;
-    const velocity = dt > 0 ? (e.clientY - first.y) / dt : 0;
-    const from = `translateY(${dy}px)`;
-    const scrimFrom = scrimAt(dy);
-    sheet.style.transform = '';
+    const v = dt > 0 ? (e.clientY - first.y) / dt : 0;
+    const m = mediumOffset();
+    const h = height();
+    const scrimFrom = scrimAt(y);
+    let target: 'large' | 'medium' | 'dismiss';
+    if (v < -FLING) target = 'large';
+    else if (v > FLING) target = y < m ? 'medium' : 'dismiss';
+    else if (y > m + 0.3 * (h - m)) target = 'dismiss';
+    else target = Math.abs(y) < Math.abs(y - m) ? 'large' : 'medium';
+
     scrim.style.opacity = '';
-    if (dy > height * 0.3 || velocity > 0.5) {
-      const duration = Math.min(260, Math.max(120, (height - dy) / Math.max(velocity, 1.2)));
-      dismiss(from, duration, scrimFrom);
+    if (target === 'dismiss') {
+      const duration = Math.min(260, Math.max(120, (h - y) / Math.max(Math.abs(v), 1.2)));
+      dismiss(y, duration, scrimFrom);
     } else {
-      animate(sheet, [{ transform: from }, { transform: 'translateY(0)' }]);
-      animate(scrim, [{ opacity: scrimFrom }, { opacity: SCRIM_OPACITY }]);
+      moveTo(target, y);
+      if (scrimFrom < SCRIM_OPACITY) animate(scrim, [{ opacity: scrimFrom }, { opacity: SCRIM_OPACITY }], MOVE_MS, EASE_IOS);
     }
   };
-  head.addEventListener('pointerup', release);
-  head.addEventListener('pointercancel', release);
+  sheet.addEventListener('pointerup', release);
+  sheet.addEventListener('pointercancel', release);
+
+  sheet.addEventListener(
+    'click',
+    e => {
+      if (swallow) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    },
+    true,
+  );
 
   return handle;
 }

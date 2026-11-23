@@ -63,3 +63,7 @@ export function setAliasGroups(s: Settings, groups: string[][]): Settings {
     .filter(g => g.length >= 2);
   return { ...s, aliases };
 }
+
+export function clearAllExerciseRules(s: Settings): Settings {
+  return { ...s, exercises: {} };
+}

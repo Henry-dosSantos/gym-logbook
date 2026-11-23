@@ -2,6 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { X } from 'lucide';
 import { normName, spellingIndex } from '../core/history';
 import {
+  clearAllExerciseRules,
   clearExerciseRule,
   exerciseRule,
   globalRule,
@@ -118,11 +119,31 @@ function customRulesPage(ctx: AppContext, stack: () => Stack): Page {
       list.append(row.el);
     }
   };
+  const resetAll = button('row', 'reset-all', 'Reset all to default', () => {
+    resetAll.hidden = true;
+    confirm.hidden = false;
+  });
+  const confirm = el('div', 'confirm');
+  const cancel = button('btn', 'cancel-reset', 'Cancel', () => {
+    confirm.hidden = true;
+    resetAll.hidden = false;
+  });
+  const accept = button('btn btn-accept', 'confirm-reset', 'Reset all', () => {
+    ctx.updateSettings(clearAllExerciseRules(ctx.getSettings()));
+    refresh();
+  });
+  const actions = el('div', 'confirm-actions');
+  actions.append(cancel, accept);
+  confirm.append(el('div', 'confirm-text', 'Reset every custom rule?'), actions);
+
   const refresh = () => {
     for (const { key, row } of rows) {
       const text = customText(ctx, key);
       row.setValue(text, true);
     }
+    const any = Object.keys(ctx.getSettings().exercises).length > 0;
+    resetAll.hidden = !any;
+    confirm.hidden = true;
   };
 
   build();
@@ -130,6 +151,8 @@ function customRulesPage(ctx: AppContext, stack: () => Stack): Page {
   root.append(
     pageHeader('Custom rules', () => stack().pop()),
     sectionFooter('Tap an exercise to give it its own rule.'),
+    resetAll,
+    confirm,
     list,
   );
   return { el: root, refresh };
@@ -139,7 +162,7 @@ function exercisePage(ctx: AppContext, stack: () => Stack, key: string, name: st
   const root = el('div', 'settings');
   const footer = sectionFooter();
   footer.dataset.footer = 'exercise';
-  const reset = button('row', 'reset', 'Use default', () => {
+  const reset = button('row', 'reset', 'Reset to default', () => {
     ctx.updateSettings(clearExerciseRule(ctx.getSettings(), key));
     sync();
   });

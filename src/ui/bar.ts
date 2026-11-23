@@ -47,7 +47,7 @@ export function createBar(ctx: AppContext): Bar {
   };
 
   const sheet = (label: string, content: HTMLElement) =>
-    openSheet({ label, content, full: true, flush: true, onClose: ctx.flushSettings });
+    openSheet({ label, content, flush: true, onClose: ctx.flushSettings });
 
   const handlers: Record<string, (tab: HTMLButtonElement) => void> = {
     dashboard: () =>

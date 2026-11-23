@@ -2,6 +2,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import type { Settings, Suggestion } from '../core/types';
+import { topInset } from '../viewport';
 import { ghostExtension } from './ghost';
 import { linesField } from './lines';
 import { dismissedField, parsedField, setSettings, settingsField, suggestionField } from './state';
@@ -31,6 +32,7 @@ export function createEditor(opts: {
       keymap.of([...defaultKeymap, ...historyKeymap]),
       EditorView.lineWrapping,
       EditorView.scrollMargins.of(() => ({
+        top: topInset(),
         bottom: document.getElementById('app')?.classList.contains('kb-open') ? 32 : 104,
       })),
       EditorView.contentAttributes.of({

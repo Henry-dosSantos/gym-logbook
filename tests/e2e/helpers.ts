@@ -150,3 +150,20 @@ export const setClipboard = (page: Page, text: string | null): Promise<void> =>
   page.evaluate(t => {
     (window as unknown as { __clip: string | null }).__clip = t;
   }, text);
+
+export async function dragSheet(page: Page, dy: number, steps = 8): Promise<void> {
+  const grip = (await page.locator('.sheet-grip').boundingBox())!;
+  const x = grip.x + grip.width / 2;
+  const y = grip.y + grip.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= steps; i++) await page.mouse.move(x, y + (dy * i) / steps);
+  await page.mouse.up();
+}
+
+export async function expandSheet(page: Page): Promise<void> {
+  await page.waitForTimeout(350);
+  await dragSheet(page, -300);
+  await expect(page.locator('.sheet[data-detent="large"]')).toHaveCount(1);
+  await page.waitForTimeout(350);
+}

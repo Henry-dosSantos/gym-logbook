@@ -3,6 +3,7 @@ import {
   act,
   closeByScrim,
   copied,
+  dragSheet,
   expect,
   expectGhost,
   focusEnd,
@@ -84,9 +85,67 @@ test.describe('bar', () => {
     await expect(page.locator('[data-action="menu"]')).toHaveCount(0);
   });
 
-  test('head has no status bar style meta', async ({ page }) => {
+  test('text scrolls behind the top inset', async ({ page }) => {
     await open(page);
-    await expect(page.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveCount(0);
+    await expect(page.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveAttribute(
+      'content',
+      'black-translucent',
+    );
+    await expect(page.locator('.editor')).toHaveCSS('padding-top', '0px');
+    await page.evaluate(() => document.documentElement.style.setProperty('--top', '59px'));
+    await expect(page.locator('.cm-content')).toHaveCSS('padding-top', '67px');
+    expect((await page.locator('.cm-scroller').boundingBox())!.y).toBe(0);
+  });
+
+  test.describe('sheet detents', () => {
+    test.skip(!hasFixture, 'fixture not present');
+
+    const top = async (page: Page) => (await page.locator('.sheet').boundingBox())!.y;
+
+    test.beforeEach(async ({ page }) => {
+      await seed(page, readFixture());
+      await tapTab(page, 'lint');
+      await page.locator('.lint-row').first().waitFor();
+      await page.waitForTimeout(400);
+    });
+
+    test('opens at half height, pulls up, settles, dismisses', async ({ page }) => {
+      await expect(page.locator('.sheet[data-detent="medium"]')).toHaveCount(1);
+      expect(Math.abs((await top(page)) - 426)).toBeLessThanOrEqual(12);
+
+      await dragSheet(page, -300);
+      await expect(page.locator('.sheet[data-detent="large"]')).toHaveCount(1);
+      await page.waitForTimeout(400);
+      expect(await top(page)).toBeLessThanOrEqual(16);
+
+      await dragSheet(page, 200, 40);
+      await expect(page.locator('.sheet[data-detent="medium"]')).toHaveCount(1);
+      await page.waitForTimeout(400);
+      expect(Math.abs((await top(page)) - 426)).toBeLessThanOrEqual(12);
+
+      await dragSheet(page, 300);
+      await expect(page.locator('.sheet')).toHaveCount(0);
+    });
+
+    test('at half height the whole sheet drags and a drag is not a tap', async ({ page }) => {
+      const row = (await page.locator('.lint-row').first().boundingBox())!;
+      const x = row.x + row.width / 2;
+      const y = row.y + row.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      for (let i = 1; i <= 10; i++) await page.mouse.move(x, y - 25 * i);
+      await page.mouse.up();
+      await expect(page.locator('.sheet[data-detent="large"]')).toHaveCount(1);
+      await page.waitForTimeout(400);
+      await expect(page.locator('.stack-page')).toHaveCount(1);
+      await expect(page.locator('[data-field=fix]')).toHaveCount(0);
+    });
+
+    test('a plain tap at half height opens the row', async ({ page }) => {
+      await page.locator('.lint-row').first().tap();
+      await expect(page.locator(`${TOP} [data-field=fix]`)).toBeFocused();
+      await expect(page.locator('.sheet[data-detent="large"]')).toHaveCount(1);
+    });
   });
 
   for (const action of ['dashboard', 'lint', 'settings']) {
@@ -290,6 +349,8 @@ test.describe('bar', () => {
     'bar only',
     'dashboard list',
     'dashboard detail',
+    'dashboard list 1rm',
+    'dashboard detail 1rm',
     'lint root',
     'fix page',
     'settings root',
@@ -304,9 +365,17 @@ test.describe('bar', () => {
         await tapTab(page, 'dashboard');
         await page.locator('.dash-row').first().waitFor();
       }
-      if (state === 'dashboard detail') {
+      if (state === 'dashboard list 1rm') {
+        await page.locator('.dash-list [data-mode="1rm"]').tap();
+        await expect(page.locator('.dash-row').first().locator('.dash-latest')).toHaveText('322');
+      }
+      if (state.startsWith('dashboard detail')) {
         await page.locator('.dash-row[data-key="bench"]').tap();
         await expect(page.locator('.readout-value')).toHaveText('290');
+      }
+      if (state === 'dashboard detail 1rm') {
+        await page.locator('.dash-detail [data-mode="1rm"]').tap();
+        await expect(page.locator('.readout-value')).toHaveText('322');
       }
       if (state === 'lint root' || state === 'fix page') {
         await tapTab(page, 'lint');
@@ -350,7 +419,7 @@ test.describe('bar', () => {
       );
       const allowed = new Set(['none', 'currentColor', '#F2F2F2', '#8A8A8A', '#262626', '#0A0A0A']);
       expect(colors.filter(c => !allowed.has(c))).toEqual([]);
-      if (state === 'dashboard detail') expect(colors.length).toBeGreaterThan(0);
+      if (state.startsWith('dashboard detail')) expect(colors.length).toBeGreaterThan(0);
     });
   }
 });

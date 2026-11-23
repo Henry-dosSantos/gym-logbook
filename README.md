@@ -12,7 +12,7 @@ Live: https://henry-dossantos.github.io/gym-logbook/
 
 iOS gives the Home Screen app its own storage, separate from Safari, so paste your log after installing.
 
-iOS draws its own dark fade under the status bar in Home Screen web apps (iOS 26.1 and later). Web apps cannot remove it. If the top looks wrong after an update, copy your log (bar, Copy all), remove the app from the Home Screen, add it again, and paste the log back: iOS only reads some settings when the app is added, and removing the app deletes its data.
+The log scrolls behind the status bar and the Dynamic Island, so text shows to the left and right of it. iOS may still draw its own dark fade there (iOS 26.1 and later); web apps cannot remove it. If the top is still black after an update, copy your log (bar, Copy all), remove the app from the Home Screen, add it again, and paste the log back: iOS reads the status bar setting only when the app is added, and removing the app deletes its data.
 
 The bar iOS shows above the keyboard (arrows and a checkmark) belongs to Safari; web apps cannot hide it. A native wrapper can (Capacitor: Keyboard.setAccessoryBarVisible).
 
@@ -45,7 +45,7 @@ A date line starts an entry, the next line is the day type, then one exercise pe
 - Day line: your past day types, ranked by what usually follows the previous entry's day type.
 - Empty line in an entry: the next exercise from your last session of the same day type. Only in today's entry (or yesterday's before 4 am).
 - Weights: last session's weight for that set. Set 1 goes up when the last two sessions used the same weight for at least the target reps (odd stack weights go to the next weight you have logged).
-- The global rule (reps to hit, how much to add) lives under Settings (bar, last button), Progression. Individual exercises can have their own rule under Custom rules, and Merged names combines spellings into one exercise.
+- The global rule (reps to hit, how much to add) lives under Settings (bar, last button), Progression. Individual exercises can have their own rule under Custom rules; Reset to default on an exercise removes its rule, and Reset all to default (with a confirm) removes every one. Merged names combines spellings into one exercise.
 
 ## Backup
 
@@ -55,13 +55,17 @@ The log lives only on the device, in IndexedDB. Use Copy all in the bar to keep 
 
 The frosted bar at the bottom has six buttons: Dashboard, Copy day, Copy all, Paste, Lint and Settings. It hides while the keyboard is open. Copy and paste show a check mark when they finish.
 
+Dashboard, Lint and Settings open a sheet that rises to half the screen. Pull it up by the handle (or anywhere on it while it is at half height) to make it full screen; pull it down to go back to half or close it. Tapping a text field makes it full screen.
+
 ## Lint
 
 Lint in the bar lists lines the parser could not make sense of (dates out of order, a wrong year, sets with no exercise name, a missing dash, a bad number). Tap one to see a suggested fix. Press Enter or tap Fix to apply it and move to the next one, or Show in log to jump to the line. Nothing changes unless you confirm.
 
 ## Dashboard
 
-Dashboard in the bar lists every exercise with a small trend line. Tap one for the full chart of top-set weight or reps per session; drag across the chart to read any session.
+Dashboard in the bar lists every exercise with a small trend line and its latest set 1 as weight × reps. Tap one for two stacked charts per session, set 1 weight on top and set 1 reps under it; drag across either to read any session. Sessions at `max` or without a weight leave a gap in the weight chart.
+
+The toggle at the top switches the list and every exercise between Weight × reps and 1RM. 1RM is an estimated one-rep max from the best set of each session, using the Wathan equation (`1RM = 100w / (48.8 + 53.8e^(-0.075r))`), which LeSuer et al. (1997) found closest to measured maxes along with Mayhew. Sets at `max` or without a weight have no estimate, and for weighted-only exercises like weighted pull ups the estimate leaves out body weight. Estimates are less reliable above 10 reps.
 
 ## Platform adapter
 

@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
-import { expectGhost, hasFixture, open, readFixture, seed, tapTab, test } from './helpers';
+import { expandSheet, expectGhost, hasFixture, open, readFixture, seed, tapTab, test } from './helpers';
 
 const dir = fileURLToPath(new URL('../../screenshots/', import.meta.url));
 const TOP = '.sheet .stack-page:last-child';
@@ -15,6 +15,7 @@ async function shot(page: Page, name: string): Promise<void> {
 test('screenshot: empty', async ({ page }) => {
   rmSync(dir + 'import.png', { force: true });
   rmSync(dir + 'sheet.png', { force: true });
+  rmSync(dir + 'dashboard-reps.png', { force: true });
   await open(page);
   await expectGhost(page, '11/23');
   await shot(page, 'empty.png');
@@ -56,6 +57,10 @@ test.describe('with the real log', () => {
 
     await page.locator(`${TOP} [data-action=back]`).tap();
     await page.waitForTimeout(450);
+    await page.locator(`${TOP} [data-action=reset-all]`).tap();
+    await page.locator(`${TOP} .confirm-text`).waitFor();
+    await shot(page, 'settings-reset.png');
+    await page.locator(`${TOP} [data-action=cancel-reset]`).tap();
     await page.locator(`${TOP} [data-action=back]`).tap();
     await page.waitForTimeout(450);
     await page.locator('[data-action=names]').tap();
@@ -80,19 +85,25 @@ test.describe('dashboard screenshots', () => {
     await seed(page, readFixture());
     await tapTab(page, 'dashboard');
     await page.locator('.dash-row').first().waitFor();
+    await shot(page, 'sheet-half.png');
+    await expandSheet(page);
     await shot(page, 'dashboard.png');
     await page.locator('.dash-row[data-key="bench"]').tap();
     await page.waitForTimeout(500);
     await shot(page, 'dashboard-detail.png');
-    const box = (await page.locator('.chart').boundingBox())!;
+    const box = (await page.locator('.chart-weight').boundingBox())!;
     await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2);
     await page.mouse.down();
     await shot(page, 'dashboard-scrub.png');
     await page.mouse.up();
-    await page.locator('[data-action=back]').tap();
+    await page.locator('.dash-detail [data-mode="1rm"]').tap();
+    await shot(page, 'dashboard-detail-1rm.png');
+    await page.locator('.dash-detail [data-action=back]').tap();
     await page.waitForTimeout(500);
+    await shot(page, 'dashboard-1rm.png');
+    await page.locator('.dash-list [data-mode="sets"]').tap();
     await page.locator('.dash-row[data-key="leg extensions"]').tap();
     await page.waitForTimeout(500);
-    await shot(page, 'dashboard-reps.png');
+    await shot(page, 'dashboard-max.png');
   });
 });

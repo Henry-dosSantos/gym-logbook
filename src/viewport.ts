@@ -2,6 +2,13 @@ export function effectiveTopInset(envTop: number, screenHeight: number, innerHei
   return envTop > 0 && screenHeight - innerHeight >= envTop ? 0 : envTop;
 }
 
+let currentTop = 0;
+
+/** Height of the status bar / Dynamic Island area the editor text scrolls behind. */
+export function topInset(): number {
+  return currentTop;
+}
+
 export function trackViewport(app: HTMLElement): void {
   const vv = window.visualViewport;
   const probe = document.createElement('div');
@@ -16,6 +23,7 @@ export function trackViewport(app: HTMLElement): void {
     app.style.transform = `translateY(${top}px)`;
     app.classList.toggle('kb-open', window.innerHeight - height > 120);
     const inset = effectiveTopInset(probe.offsetHeight, window.screen.height, window.innerHeight);
+    currentTop = inset;
     document.documentElement.style.setProperty('--top', `${inset}px`);
   };
   vv?.addEventListener('resize', update);
