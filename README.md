@@ -16,6 +16,10 @@ The log scrolls behind the status bar and the Dynamic Island, so text shows to t
 
 The bar iOS shows above the keyboard (arrows and a checkmark) belongs to Safari; web apps cannot hide it. A native wrapper can (Capacitor: Keyboard.setAccessoryBarVisible).
 
+## Screens
+
+The app sizes itself to whatever screen it is on, edge to edge, so it fills an iPhone 16 Pro (the log runs under the Dynamic Island and the bar sits just above the home indicator) and both screens of an iPhone Duo. Folding or unfolding the Duo relayouts on the spot, open sheets and charts included. On wide screens (the Duo's inner screen, or landscape) the log stays full width while the sheets and the bar keep a comfortable width, centred; in landscape they stay clear of the Dynamic Island.
+
 ## Log format
 
 ```
