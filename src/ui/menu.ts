@@ -1,8 +1,6 @@
-import { isolateHistory } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { Ellipsis } from 'lucide';
-import { entryText } from '../core/history';
-import { exportFiles } from '../export';
+import { todayText } from '../core/history';
 import { platform } from '../platform';
 import { parsedField } from '../editor/state';
 import { button, el, icon } from './dom';
@@ -12,49 +10,6 @@ import type { SheetHandle } from './sheet';
 import { dashboardView } from './dashboard';
 import { settingsView } from './settings-view';
 import type { AppContext } from './settings-view';
-
-function importView(ctx: AppContext, sheet: () => SheetHandle): HTMLElement {
-  const root = el('div', 'import');
-  const area = el('textarea', 'field');
-  area.dataset.field = 'import';
-  area.placeholder = 'Paste log';
-  area.setAttribute('autocorrect', 'off');
-  area.setAttribute('autocapitalize', 'off');
-  area.spellcheck = false;
-  area.style.minHeight = '40vh';
-  const actions = el('div', 'import-actions');
-  root.append(area, actions);
-
-  const showReplace = () => {
-    actions.replaceChildren(
-      button('btn btn-accept btn-wide', 'replace', 'Replace', () => {
-        if (area.value !== '') showConfirm();
-      }),
-    );
-  };
-  const showConfirm = () => {
-    const row = el('div', 'confirm-row');
-    row.append(
-      button('btn', 'cancel', 'Cancel', showReplace),
-      button('btn btn-accept', 'confirm', 'Replace', () => {
-        const view = ctx.view;
-        const insert = area.value;
-        view.dispatch({
-          changes: { from: 0, to: view.state.doc.length, insert },
-          selection: { anchor: insert.length },
-          scrollIntoView: true,
-          annotations: isolateHistory.of('full'),
-          userEvent: 'input.paste',
-        });
-        ctx.flushText();
-        sheet().close();
-      }),
-    );
-    actions.replaceChildren(el('div', 'confirm-text', 'Replace the whole log?'), row);
-  };
-  showReplace();
-  return root;
-}
 
 function lintView(ctx: AppContext, sheet: () => SheetHandle): HTMLElement {
   const root = el('div', 'lint');
@@ -100,7 +55,6 @@ function openMenu(ctx: AppContext): void {
   const content = el('div', 'menu');
   let sheet!: SheetHandle;
   const get = () => sheet;
-  const sub = (label: string, build: () => HTMLElement) => sheet.setContent(label, build());
 
   const row = (action: string, label: string, onClick: () => void, meta?: string) => {
     const b = button('row', action, label, onClick);
@@ -119,19 +73,13 @@ function openMenu(ctx: AppContext): void {
     ctx.flushText();
     sheet.close();
   });
-  row('copy-entry', 'Copy entry', () => {
-    const text = entryText(view.state.field(parsedField), view.state.selection.main.head);
+  row('copy-today', "Copy today's workout", () => {
+    const text = todayText(view.state.field(parsedField), new Date());
     if (text !== null) platform.copy(text);
     sheet.close();
   });
-  row('export', 'Export', () => {
-    const text = view.state.doc.toString();
-    sheet.close();
-    void platform.share(exportFiles(text, ctx.getSettings(), new Date()));
-  });
-  row('import', 'Import', () => sub('Import', () => importView(ctx, get)));
-  row('lint', 'Lint', () => sub('Lint', () => lintView(ctx, get)), flagCount ? String(flagCount) : undefined);
-  row('settings', 'Settings', () => sub('Settings', () => settingsView(ctx)));
+  row('lint', 'Lint', () => sheet.setContent('Lint', lintView(ctx, get)), flagCount ? String(flagCount) : undefined);
+  row('settings', 'Settings', () => sheet.setContent('Settings', settingsView(ctx), { full: true, flush: true }));
 
   sheet = openSheet({ label: 'Menu', content, onClose: ctx.flushSettings });
 }

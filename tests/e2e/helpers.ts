@@ -136,7 +136,7 @@ export async function tapRow(page: Page, action: string): Promise<void> {
 }
 
 export async function closeByScrim(page: Page): Promise<void> {
-  await page.locator('.scrim').tap({ position: { x: 10, y: 10 } });
+  await page.locator('.scrim').tap({ position: { x: 10, y: 3 } });
   await expect(page.locator('.sheet')).toHaveCount(0);
 }
 

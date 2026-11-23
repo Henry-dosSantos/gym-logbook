@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: 'tests/e2e',
   testMatch: '**/*.e2e.ts',
   fullyParallel: true,
+  workers: 3,
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:4173/gym-logbook/',

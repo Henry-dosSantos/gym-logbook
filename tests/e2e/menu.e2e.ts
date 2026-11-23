@@ -1,32 +1,22 @@
-import { readFileSync } from 'node:fs';
-import type { Download, Page } from '@playwright/test';
 import {
   act,
   closeByScrim,
   copied,
   expect,
-  expectGhost,
-  fixturePath,
-  focusEnd,
   hasFixture,
   open,
   openMenu,
   readFixture,
-  run,
   seed,
   stored,
-  storedSettings,
   strip,
   stubClipboard,
   tapRow,
   test,
 } from './helpers';
-import type { Step } from './helpers';
 
 const LAST_ENTRY =
   '11/22\nPull\nWeighted chin ups-200-2/180-4/\nUnderhand rows-370-6/370-6/370-5/\nHammer curls-75-4/70-5/';
-
-const NEW_BENCH: Step[] = ['enter', 'enter', 'enter', 'enter', 'type:P', 'enter', 'enter', 'enter'];
 
 test.describe('menu and sheet', () => {
   test.beforeEach(async ({ page }) => {
@@ -36,15 +26,18 @@ test.describe('menu and sheet', () => {
   test('menu rows', async ({ page }) => {
     await open(page);
     await openMenu(page);
-    await expect(page.locator('.sheet .row')).toHaveText([
-      'Dashboard',
-      'Copy all',
-      'Copy entry',
-      'Export',
-      'Import',
-      'Lint',
-      'Settings',
-    ].map(label => new RegExp(`^${label}`)));
+    await expect(page.locator('.sheet .row')).toHaveText(
+      ['Dashboard', 'Copy all', "Copy today's workout", 'Lint', 'Settings'].map(
+        label => new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+      ),
+    );
+    await expect(page.locator('[data-action="export"]')).toHaveCount(0);
+    await expect(page.locator('[data-action="import"]')).toHaveCount(0);
+  });
+
+  test('head has no status bar style meta', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveCount(0);
   });
 
   test('sheet mechanics', async ({ page }) => {
@@ -54,6 +47,7 @@ test.describe('menu and sheet', () => {
     await closeByScrim(page);
 
     await openMenu(page);
+    await page.waitForTimeout(400);
     let box = (await page.locator('.sheet').boundingBox())!;
     const x = box.x + box.width / 2;
     const y = box.y + 14;
@@ -64,6 +58,7 @@ test.describe('menu and sheet', () => {
     await expect(page.locator('.sheet')).toHaveCount(0);
 
     await openMenu(page);
+    await page.waitForTimeout(400);
     box = (await page.locator('.sheet').boundingBox())!;
     await page.mouse.move(x, y);
     await page.mouse.down();
@@ -81,7 +76,7 @@ test.describe('menu and sheet', () => {
     await expect(page.locator('.sheet')).toHaveCount(0);
   });
 
-  test('copy all, copy entry', async ({ page }) => {
+  test('copy all and copy today', async ({ page }) => {
     test.skip(!hasFixture, 'fixture not present');
     const F = readFixture();
     await seed(page, F);
@@ -92,55 +87,40 @@ test.describe('menu and sheet', () => {
     expect(await copied(page)).toBe(await stored(page));
 
     await openMenu(page);
-    await tapRow(page, 'copy-entry');
+    await tapRow(page, 'copy-today');
     await expect(page.locator('.sheet')).toHaveCount(0);
     expect(await copied(page)).toBe(LAST_ENTRY);
   });
 
-  test('import round trip', async ({ page }) => {
+  test('copy today picks the entry dated today', async ({ page }) => {
     test.skip(!hasFixture, 'fixture not present');
-    const F = readFixture();
-    await open(page);
+    await seed(page, readFixture());
+    for (const s of ['enter', 'enter', 'enter', 'enter', 'type:Push'] as const) await act(page, s);
+    await expect.poll(() => stored(page)).toContain('\n\n11/23\nPush');
     await openMenu(page);
-    await tapRow(page, 'import');
-    await page.locator('[data-field=import]').fill(F);
-    await tapRow(page, 'replace');
-    await expect(page.locator('.confirm-text')).toHaveText('Replace the whole log?');
-    await tapRow(page, 'cancel');
-    expect(await stored(page)).toBeUndefined();
-    await tapRow(page, 'replace');
-    await tapRow(page, 'confirm');
+    await tapRow(page, 'copy-today');
     await expect(page.locator('.sheet')).toHaveCount(0);
-    await expect.poll(() => stored(page)).toBe(F);
-
-    await openMenu(page);
-    await tapRow(page, 'copy-all');
-    expect(await copied(page)).toBe(F);
-    await expect(page.locator('.sheet')).toHaveCount(0);
-
-    await page.locator('.cm-content').focus();
-    await page.keyboard.press('Meta+z');
-    await expect.poll(() => stored(page)).toBe('');
+    expect(await copied(page)).toBe('11/23\nPush');
   });
 
-  test('export fallback downloads both files', async ({ page }) => {
+  test('strip overlay', async ({ page }) => {
     test.skip(!hasFixture, 'fixture not present');
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
-      Object.defineProperty(navigator, 'canShare', { configurable: true, value: undefined });
-    });
-    const downloads: Download[] = [];
-    page.on('download', d => downloads.push(d));
     await seed(page, readFixture());
+    const bar = page.locator('.strip-bar');
+    await expect(bar).toBeVisible();
+    expect(await strip(page)).toHaveLength(2);
+    const editor = (await page.locator('.editor').boundingBox())!;
+    expect(editor.y + editor.height).toBe(852);
+    expect((await page.locator('.strip').boundingBox())!.height).toBe(24);
+
+    await act(page, 'enter');
+    await act(page, 'enter');
+    await expect(bar).toBeHidden();
+
+    await seed(page, readFixture());
+    await expect(bar).toBeVisible();
     await openMenu(page);
-    await tapRow(page, 'export');
-    await expect.poll(() => downloads.length).toBe(2);
-    const byName = Object.fromEntries(downloads.map(d => [d.suggestedFilename(), d]));
-    expect(Object.keys(byName).sort()).toEqual(['logbook-2026-11-23.txt', 'logbook-settings.json']);
-    const txt = readFileSync((await byName['logbook-2026-11-23.txt'].path())!);
-    expect(txt.equals(readFileSync(fixturePath))).toBe(true);
-    const json = JSON.parse(readFileSync((await byName['logbook-settings.json'].path())!, 'utf8'));
-    expect(Array.isArray(json.aliases)).toBe(true);
+    await expect(bar).toBeHidden();
   });
 
   test('lint panel', async ({ page }) => {
@@ -159,74 +139,40 @@ test.describe('menu and sheet', () => {
     await expect.poll(async () => (await stored(page)) ?? '').toContain('Legs-405-2/365-6/365-3/X\n');
   });
 
-  test('settings target changes the suggestion', async ({ page }) => {
-    test.skip(!hasFixture, 'fixture not present');
-    const F = readFixture();
-    await seed(page, F);
-    await openMenu(page);
-    await tapRow(page, 'settings');
-    await page.locator('input[data-field="target"][data-key="bench"]').fill('3');
-    const bench = (field: string) => page.locator(`input[data-field="${field}"][data-key="bench"]`);
-    await expect(bench('target')).toHaveAttribute('placeholder', '4');
-    await expect(bench('increment')).toHaveAttribute('placeholder', '5');
-    await closeByScrim(page);
-    await expect.poll(async () => (await storedSettings(page))?.exercises?.bench?.target).toBe(3);
-
-    await focusEnd(page);
-    for (const s of NEW_BENCH) await act(page, s);
-    await expectGhost(page, '-295');
-
-    await page.reload();
-    await page.locator('.cm-content').waitFor();
-    await openMenu(page);
-    await tapRow(page, 'settings');
-    await expect(page.locator('input[data-field="target"][data-key="bench"]')).toHaveValue('3');
-  });
-
-  const chinStrip = async (page: Page) => {
-    await focusEnd(page);
-    await act(page, 'enter');
-    await act(page, 'type:Chin ups');
-  };
-
-  test('aliases merge exercises', async ({ page }) => {
-    test.skip(!hasFixture, 'fixture not present');
-    await seed(page, readFixture());
-    await openMenu(page);
-    await tapRow(page, 'settings');
-    const area = page.locator('[data-field=aliases]');
-    await area.fill((await area.inputValue()) + '\nChin ups, Weighted chin ups');
-    await closeByScrim(page);
-    await chinStrip(page);
-    await expectGhost(page, '-190');
-    expect(await strip(page)).toEqual([
-      ['11/18', '190-3/160-4/145-4'],
-      ['11/12', '180-3/135-5'],
-    ]);
-  });
-
-  test('without the alias the exercises stay apart', async ({ page }) => {
-    test.skip(!hasFixture, 'fixture not present');
-    await seed(page, readFixture());
-    await chinStrip(page);
-    await expectGhost(page, '-180');
-    expect(await strip(page)).toEqual([
-      ['11/12', '180-3/135-5'],
-      ['11/8', '180-3/180-3/160-4'],
-    ]);
-  });
-
-  for (const state of ['menu closed', 'menu open', 'dashboard list', 'dashboard detail']) {
+  const states = [
+    'menu closed',
+    'menu open',
+    'dashboard list',
+    'dashboard detail',
+    'settings root',
+    'exercise page',
+    'merged names page',
+  ];
+  for (const state of states) {
     test(`design guards, ${state}`, async ({ page }) => {
       test.skip(!hasFixture, 'fixture not present');
       await seed(page, readFixture());
       if (state !== 'menu closed') await openMenu(page);
       if (state.startsWith('dashboard')) await tapRow(page, 'dashboard');
+      if (state.startsWith('dashboard')) await page.locator('.dash-row').first().waitFor();
       if (state === 'dashboard detail') {
         await page.locator('.dash-row[data-key="bench"]').tap();
         await expect(page.locator('.readout-value')).toHaveText('290');
-        await page.waitForTimeout(500);
       }
+      if (state.startsWith('settings') || state === 'exercise page' || state === 'merged names page') {
+        await tapRow(page, 'settings');
+        await page.locator('[data-action=exercises]').waitFor();
+      }
+      if (state === 'exercise page') {
+        await page.locator('[data-action=exercises]').tap();
+        await page.locator('.nav-row[data-key="bench"]').tap();
+        await expect(page.locator('[data-footer=exercise]')).toBeVisible();
+      }
+      if (state === 'merged names page') {
+        await page.locator('[data-action=names]').tap();
+        await page.locator('[data-group="0"]').waitFor();
+      }
+      await page.waitForTimeout(500);
       const bad = await page.evaluate(() => {
         const found: string[] = [];
         for (const e of Array.from(document.querySelectorAll('*'))) {
@@ -243,16 +189,14 @@ test.describe('menu and sheet', () => {
       const menu = (await page.locator('[data-action=menu]').boundingBox())!;
       expect(menu.width).toBeGreaterThanOrEqual(44);
       expect(menu.height).toBeGreaterThanOrEqual(44);
-      if (state === 'dashboard detail') {
-        const colors = await page.evaluate(() =>
-          Array.from(document.querySelectorAll('svg *')).flatMap(e =>
-            ['fill', 'stroke'].map(a => e.getAttribute(a)).filter((v): v is string => v !== null),
-          ),
-        );
-        const allowed = new Set(['none', '#F2F2F2', '#8A8A8A', '#262626', '#0A0A0A']);
-        expect(colors.filter(c => !allowed.has(c))).toEqual([]);
-        expect(colors.length).toBeGreaterThan(0);
-      }
+      const colors = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('svg *')).flatMap(e =>
+          ['fill', 'stroke'].map(a => e.getAttribute(a)).filter((v): v is string => v !== null),
+        ),
+      );
+      const allowed = new Set(['none', '#F2F2F2', '#8A8A8A', '#262626', '#0A0A0A']);
+      expect(colors.filter(c => !allowed.has(c))).toEqual([]);
+      if (state === 'dashboard detail') expect(colors.length).toBeGreaterThan(0);
     });
   }
 });

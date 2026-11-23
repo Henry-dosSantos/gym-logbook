@@ -3,14 +3,24 @@ import type { StripItem } from '../core/types';
 export interface Strip {
   el: HTMLElement;
   setStrip(items: StripItem[]): void;
+  setActive(active: boolean): void;
 }
 
-export function createStrip(): Strip {
+export function createStrip(onShow?: () => void): Strip {
   const el = document.createElement('div');
-  el.className = 'bar';
+  el.className = 'strip-bar';
+  el.hidden = true;
   const strip = document.createElement('div');
   strip.className = 'strip';
   el.append(strip);
+
+  let count = 0;
+  let active = false;
+  const sync = () => {
+    const wasHidden = el.hidden;
+    el.hidden = !(count > 0 && active);
+    if (wasHidden && !el.hidden) onShow?.();
+  };
 
   return {
     el,
@@ -28,6 +38,12 @@ export function createStrip(): Strip {
         node.append(date, ' ', sets);
         strip.append(node);
       }
+      count = items.length;
+      sync();
+    },
+    setActive(value) {
+      active = value;
+      sync();
     },
   };
 }

@@ -1,20 +1,18 @@
-import { ChevronLeft } from 'lucide';
 import { dashboardItems, exerciseSeries, metricPoints } from '../core/stats';
 import type { DashboardItem, Metric, SeriesPoint } from '../core/stats';
 import type { Doc } from '../core/types';
 import { platform } from '../platform';
 import { buildChart, sparkline } from './chart';
-import { button, el, icon } from './dom';
-import { pressable } from './press';
-import { EASE_IOS, reduced } from './sheet';
-
-const SLIDE = 350;
+import { button, el } from './dom';
+import { reduced } from './sheet';
+import { createStack, pageHeader } from './stack';
+import type { Page } from './stack';
 
 function valueOf(p: SeriesPoint, metric: Metric): number {
   return (metric === 'reps' ? p.reps : p.weight) as number;
 }
 
-function buildDetail(doc: Doc, aliases: string[][], item: DashboardItem, onBack: () => void): HTMLElement {
+function buildDetail(doc: Doc, aliases: string[][], item: DashboardItem, onBack: () => void): Page {
   const series = exerciseSeries(doc, item.key, aliases);
   const counts: Record<Metric, number> = {
     weight: metricPoints(series, 'weight').length,
@@ -25,15 +23,7 @@ function buildDetail(doc: Doc, aliases: string[][], item: DashboardItem, onBack:
 
   const root = el('div', 'detail');
 
-  const header = el('div', 'detail-header');
-  const back = el('button', 'back-btn');
-  back.type = 'button';
-  back.dataset.action = 'back';
-  back.setAttribute('aria-label', 'Back');
-  back.append(icon(ChevronLeft));
-  pressable(back);
-  back.addEventListener('click', onBack);
-  header.append(back, el('div', 'detail-name', item.name));
+  const header = pageHeader(item.name, onBack, 'detail-name');
 
   const readout = el('div', 'readout');
   const readoutDate = el('div', 'readout-date');
@@ -134,69 +124,25 @@ function buildDetail(doc: Doc, aliases: string[][], item: DashboardItem, onBack:
   };
 
   root.append(header, readout, seg, chartWrap, axis, stats, el('div', 'section-label', 'Recent'), recent);
-  root.addEventListener('detail-attached', () => select(metric, false));
   let drawnWidth = 0;
   new ResizeObserver(() => {
     const width = chartWrap.clientWidth;
     if (drawnWidth && width && width !== drawnWidth) renderChart(false);
   }).observe(chartWrap);
-  return root;
+  return { el: root, className: 'dash-detail', mounted: () => select(metric, false) };
 }
 
 export function dashboardView(doc: Doc, aliases: string[][]): HTMLElement {
-  const root = el('div', 'dash');
-  const list = el('div', 'dash-list');
-  const detail = el('div', 'dash-detail');
-  detail.style.visibility = 'hidden';
-  root.append(list, detail);
-
+  const list = el('div', 'dash-items');
   const items = dashboardItems(doc, aliases);
   if (!items.length) list.append(el('div', 'empty', 'No data'));
 
-  let busy = false;
-  const slide = (frontIn: boolean, done: () => void) => {
-    busy = true;
-    const finish = () => {
-      busy = false;
-      done();
-    };
-    if (reduced()) {
-      finish();
-      return;
-    }
-    const outFrames = frontIn
-      ? [{ transform: 'translateX(0)', opacity: 1 }, { transform: 'translateX(-25%)', opacity: 0 }]
-      : [{ transform: 'translateX(-25%)', opacity: 0 }, { transform: 'translateX(0)', opacity: 1 }];
-    const inFrames = frontIn
-      ? [{ transform: 'translateX(100%)' }, { transform: 'translateX(0)' }]
-      : [{ transform: 'translateX(0)' }, { transform: 'translateX(100%)' }];
-    list.animate(outFrames, { duration: SLIDE, easing: EASE_IOS });
-    detail.animate(inFrames, { duration: SLIDE, easing: EASE_IOS }).finished.then(finish, finish);
-  };
-
-  const openDetail = (item: DashboardItem) => {
-    if (busy) return;
-    const view = buildDetail(doc, aliases, item, closeDetail);
-    detail.replaceChildren(view);
-    detail.scrollTop = 0;
-    detail.style.visibility = 'visible';
-    view.dispatchEvent(new Event('detail-attached'));
-    slide(true, () => {
-      list.style.visibility = 'hidden';
-    });
-  };
-
-  const closeDetail = () => {
-    if (busy) return;
-    list.style.visibility = 'visible';
-    slide(false, () => {
-      detail.style.visibility = 'hidden';
-      detail.replaceChildren();
-    });
-  };
+  const stack = createStack({ el: list, className: 'dash-list' });
 
   for (const item of items) {
-    const row = button('row dash-row', 'dash-row', '', () => openDetail(item));
+    const row = button('row dash-row', 'dash-row', '', () =>
+      stack.push(buildDetail(doc, aliases, item, () => stack.pop())),
+    );
     row.removeAttribute('data-action');
     row.dataset.key = item.key;
     const left = el('div', 'dash-left');
@@ -205,5 +151,5 @@ export function dashboardView(doc: Doc, aliases: string[][]): HTMLElement {
     row.append(left, sparkline(item.values), latest);
     list.append(row);
   }
-  return root;
+  return stack.el;
 }

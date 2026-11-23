@@ -1,4 +1,4 @@
-import type { ExportFile, Platform } from './index';
+import type { Platform } from './index';
 
 const DB_NAME = 'logbook';
 const STORE = 'kv';
@@ -42,19 +42,6 @@ function fallbackCopy(text: string): void {
   area.remove();
 }
 
-function download(files: File[]): void {
-  for (const file of files) {
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-}
-
 export const web: Platform = {
   start() {
     try {
@@ -84,17 +71,6 @@ export const web: Platform = {
     }
     if (!pending) fallbackCopy(text);
     else pending.catch(() => fallbackCopy(text));
-  },
-
-  async share(files: ExportFile[]) {
-    const made = files.map(f => new File([f.content], f.name, { type: f.type }));
-    try {
-      if (navigator.canShare?.({ files: made })) await navigator.share({ files: made });
-      else if (navigator.canShare?.({ files: [made[0]] })) await navigator.share({ files: [made[0]] });
-      else download(made);
-    } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError')) throw e;
-    }
   },
 
   haptic() {

@@ -75,6 +75,22 @@ describe('next exercise after a blank line', () => {
   });
 });
 
+describe('global rule', () => {
+  const two = ['Bench-300-4/', 'Bench-300-5/'];
+  const withSettings = (extra: Partial<Settings>) => ({ ...DEFAULT_SETTINGS, ...extra });
+
+  it.each([
+    [two, { defaults: { target: 5 } }, '-300'],
+    [two, { defaults: { increment: 10 } }, '-310'],
+    [two, { defaults: { increment: 10 }, exercises: { bench: { increment: 2.5 } } }, '-302.5'],
+    [two, { defaults: { target: 6 }, exercises: { bench: { target: 4 } } }, '-305'],
+    [['X-84-6/', 'X-92.5-3/', 'X-91-5/', 'X-91-5/'], { defaults: { increment: 10 } }, '-92.5'],
+  ] as [string[], Partial<Settings>, string][])('%j %j', (sessions, extra, expected) => {
+    const name = sessions[0].split('-')[0];
+    expect(ghostText(sessionsDoc(sessions, name), withSettings(extra))).toBe(expected);
+  });
+});
+
 describe('rankDayTypes', () => {
   const days = ['Push', 'Legs', 'Pull', 'Push', 'Legs', 'Pull', 'Push', 'Pull', 'Legs'];
   const doc = parseDoc(days.map((d, i) => `1/${i + 1}\n${d}\nBench-1-1/`).join('\n\n'));

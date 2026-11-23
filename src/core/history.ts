@@ -117,15 +117,15 @@ export function rankDayTypes(doc: Doc, beforeEntry: number, prevKey: string | nu
     .sort((a, b) => (following.get(b) ?? 0) - (following.get(a) ?? 0) || lastIndex.get(b)! - lastIndex.get(a)!);
 }
 
-export function entryText(doc: Doc, pos: number): string | null {
+export function todayText(doc: Doc, today: Date): string | null {
   if (!doc.entries.length) return null;
+  const month = today.getMonth() + 1;
+  const day = today.getDate();
   let entry = doc.entries[doc.entries.length - 1];
-  if (pos >= doc.entries[0].dateLine.from) {
-    for (let i = doc.entries.length - 1; i >= 0; i--) {
-      if (doc.entries[i].dateLine.from <= pos) {
-        entry = doc.entries[i];
-        break;
-      }
+  for (let i = doc.entries.length - 1; i >= 0; i--) {
+    if (doc.entries[i].month === month && doc.entries[i].day === day) {
+      entry = doc.entries[i];
+      break;
     }
   }
   const last = [...entry.lines].reverse().find(l => l.kind !== 'blank')!;

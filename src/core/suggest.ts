@@ -24,7 +24,12 @@ function formatWeight(set: SetEntry, weight: number | 'max'): string {
   return weight === 'max' ? 'max' : String(weight) + (set.pair ? 's' : '');
 }
 
-export function suggestWeight(sessions: Session[], setNumber: number, opts: ExerciseSetting): string | null {
+export function suggestWeight(
+  sessions: Session[],
+  setNumber: number,
+  opts: ExerciseSetting,
+  defaults: ExerciseSetting = {},
+): string | null {
   const last = sessions[sessions.length - 1];
   if (!last) return null;
   if (setNumber >= 2) {
@@ -37,7 +42,7 @@ export function suggestWeight(sessions: Session[], setNumber: number, opts: Exer
   if (w === null) return null;
   if (w === 'max') return 'max';
   const prev = sessions[sessions.length - 2];
-  const target = opts.target ?? DEFAULT_TARGET;
+  const target = opts.target ?? defaults.target ?? DEFAULT_TARGET;
   const prevFirst = prev?.sets[0];
   const progressed =
     prevFirst !== undefined &&
@@ -47,7 +52,8 @@ export function suggestWeight(sessions: Session[], setNumber: number, opts: Exer
     prevFirst.reps >= target &&
     first.reps >= target;
   if (!progressed) return formatWeight(first, w);
-  let next = w + 5;
+  const step = defaults.increment ?? 5;
+  let next = w + step;
   if (opts.increment !== undefined) next = w + opts.increment;
   else if (w % 5 !== 0) {
     const higher = sessions
@@ -74,7 +80,7 @@ export function exerciseList(
 
 function weightFor(doc: Doc, cur: Entry, key: string, setNumber: number, settings: Settings): string | null {
   const sessions = sessionsOf(doc, key, cur.index, settings.aliases, true);
-  return suggestWeight(sessions, setNumber, settings.exercises[key] ?? {});
+  return suggestWeight(sessions, setNumber, settings.exercises[key] ?? {}, settings.defaults);
 }
 
 function lastUsableSetCount(doc: Doc, cur: Entry, key: string, settings: Settings): number {

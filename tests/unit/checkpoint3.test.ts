@@ -1,54 +1,35 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { entryText } from '../../src/core/history';
+import { todayText } from '../../src/core/history';
 import { parseDoc } from '../../src/core/parse';
 import { DEFAULT_SETTINGS } from '../../src/core/settings';
 import { exerciseList } from '../../src/core/suggest';
-import { exportFiles } from '../../src/export';
 
 const fixturePath = new URL('../fixtures/gym-2026.txt', import.meta.url);
 const hasFixture = existsSync(fixturePath);
 
-describe('exportFiles', () => {
-  it('names and types the files', () => {
-    const files = exportFiles('abc', DEFAULT_SETTINGS, new Date(2026, 10, 3));
-    expect(files.map(f => [f.name, f.type])).toEqual([
-      ['logbook-2026-11-03.txt', 'text/plain'],
-      ['logbook-settings.json', 'application/json'],
-    ]);
-    expect(files[0].content).toBe('abc');
-    expect(JSON.parse(files[1].content)).toEqual(DEFAULT_SETTINGS);
+const LAST_ENTRY =
+  '11/22\nPull\nWeighted chin ups-200-2/180-4/\nUnderhand rows-370-6/370-6/370-5/\nHammer curls-75-4/70-5/';
+
+describe('todayText', () => {
+  const text = '1/1\nPush\nBench-1-1/\n\n1/2\nPull\nRows-1-1/\n\n';
+
+  it('prefers the entry dated today', () => {
+    expect(todayText(parseDoc(text), new Date(2026, 0, 1))).toBe('1/1\nPush\nBench-1-1/');
   });
 
-  it.skipIf(!hasFixture)('keeps the fixture bytes', () => {
-    const F = readFileSync(fixturePath, 'utf8');
-    const files = exportFiles(F, DEFAULT_SETTINGS, new Date(2026, 10, 3));
-    expect(Buffer.from(new TextEncoder().encode(files[0].content)).equals(readFileSync(fixturePath))).toBe(true);
-  });
-});
-
-describe('entryText', () => {
-  it('excludes trailing blank lines', () => {
-    const text = '1/1\nPush\nBench-1-1/\n\n\n1/2\nPull\nRows-1-1/\n\n\n';
-    const doc = parseDoc(text);
-    expect(entryText(doc, 5)).toBe('1/1\nPush\nBench-1-1/');
-    expect(entryText(doc, text.length)).toBe('1/2\nPull\nRows-1-1/');
-  });
-
-  it('uses the last entry before the first date', () => {
-    const doc = parseDoc('Gym 2026\n1/1\nPush\n\n1/2\nPull');
-    expect(entryText(doc, 0)).toBe('1/2\nPull');
+  it('falls back to the last entry', () => {
+    expect(todayText(parseDoc(text), new Date(2026, 0, 5))).toBe('1/2\nPull\nRows-1-1/');
   });
 
   it('is null without entries', () => {
-    expect(entryText(parseDoc(''), 0)).toBeNull();
+    expect(todayText(parseDoc(''), new Date(2026, 0, 1))).toBeNull();
   });
 
-  it.skipIf(!hasFixture)('finds the last fixture entry', () => {
-    const F = readFileSync(fixturePath, 'utf8');
-    expect(entryText(parseDoc(F), F.length)).toBe(
-      '11/22\nPull\nWeighted chin ups-200-2/180-4/\nUnderhand rows-370-6/370-6/370-5/\nHammer curls-75-4/70-5/',
-    );
+  it.skipIf(!hasFixture)('uses the fixture entry', () => {
+    const doc = parseDoc(readFileSync(fixturePath, 'utf8'));
+    expect(todayText(doc, new Date(2026, 10, 22))).toBe(LAST_ENTRY);
+    expect(todayText(doc, new Date(2026, 10, 23))).toBe(LAST_ENTRY);
   });
 });
 

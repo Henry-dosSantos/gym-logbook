@@ -15,6 +15,7 @@ export function createEditor(opts: {
   onChange(text: string): void;
   onSuggestion(s: Suggestion): void;
   onAccept(): void;
+  onFocus(focused: boolean): void;
 }): EditorView {
   const state = EditorState.create({
     doc: opts.text,
@@ -29,6 +30,7 @@ export function createEditor(opts: {
       linesField,
       keymap.of([...defaultKeymap, ...historyKeymap]),
       EditorView.lineWrapping,
+      EditorView.scrollMargins.of(() => ({ bottom: 32 })),
       EditorView.contentAttributes.of({
         autocorrect: 'off',
         spellcheck: 'false',
@@ -39,6 +41,7 @@ export function createEditor(opts: {
       EditorView.updateListener.of(u => {
         if (u.docChanged) opts.onChange(u.state.doc.toString());
         if (u.transactions.some(tr => tr.isUserEvent('input.complete'))) opts.onAccept();
+        if (u.focusChanged) opts.onFocus(u.view.hasFocus);
         if (u.state.field(suggestionField) !== u.startState.field(suggestionField)) {
           opts.onSuggestion(u.state.field(suggestionField));
         }
@@ -48,5 +51,10 @@ export function createEditor(opts: {
   const view = new EditorView({ state, parent: opts.parent });
   view.dispatch({ effects: EditorView.scrollIntoView(opts.text.length, { y: 'end' }) });
   opts.onSuggestion(view.state.field(suggestionField));
+  opts.onFocus(view.hasFocus);
   return view;
+}
+
+export function scrollCaretIntoView(view: EditorView): void {
+  view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head) });
 }

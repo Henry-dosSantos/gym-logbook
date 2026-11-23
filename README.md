@@ -8,9 +8,11 @@ Live: https://henry-dossantos.github.io/gym-logbook/
 
 1. Open the URL in Safari.
 2. Tap Share, then Add to Home Screen.
-3. Open Logbook from the Home Screen.
+3. Open Logbook from the Home Screen and paste your log into the empty page.
 
-iOS gives the Home Screen app its own storage, separate from Safari. Import your log after installing: menu, Import, paste, Replace.
+iOS gives the Home Screen app its own storage, separate from Safari, so paste your log after installing.
+
+iOS draws its own dark fade under the status bar in Home Screen web apps (iOS 26.1 and later). Web apps cannot remove it. If the top looks wrong after an update, copy your log (menu, Copy all), remove the app from the Home Screen, add it again, and paste the log back: iOS only reads some settings when the app is added, and removing the app deletes its data.
 
 The bar iOS shows above the keyboard (arrows and a checkmark) belongs to Safari; web apps cannot hide it. A native wrapper can (Capacitor: Keyboard.setAccessoryBarVisible).
 
@@ -41,12 +43,12 @@ A date line starts an entry, the next line is the day type, then one exercise pe
 - New entry: today's date.
 - Day line: your past day types, ranked by what usually follows the previous entry's day type.
 - Empty line in an entry: the next exercise from your last session of the same day type. Only in today's entry (or yesterday's before 4 am).
-- Weights: last session's weight for that set. Set 1 goes up 5 lb when the last two sessions used the same weight for at least 4 reps (odd stack weights go to the next weight you have logged).
-- Target reps, increment and aliases are editable under menu, Settings.
+- Weights: last session's weight for that set. Set 1 goes up when the last two sessions used the same weight for at least the target reps (odd stack weights go to the next weight you have logged).
+- The global rule (reps to hit, how much to add) lives under menu, Settings, Progression. Individual exercises can have their own rule under Custom rules, and Merged names combines spellings into one exercise.
 
 ## Backup
 
-The log lives only on the device, in IndexedDB. Use menu, Copy all or Export to keep a copy elsewhere. Export shares the log as a .txt file and the settings as a second .json file.
+The log lives only on the device, in IndexedDB. Use menu, Copy all to keep a copy elsewhere. Copy today's workout copies the latest entry.
 
 ## Lint
 
@@ -58,12 +60,11 @@ Menu, Dashboard lists every exercise with a small trend line. Tap one for the fu
 
 ## Platform adapter
 
-Storage, clipboard, share/export and haptics go through one interface, `Platform` in `src/platform/index.ts`. The web implementation is `src/platform/web.ts` (IndexedDB, Clipboard API, Web Share with a download fallback, `navigator.vibrate`, service worker registration). To wrap the app natively, write another implementation of `Platform` and change the one export in `src/platform/index.ts`. The editor, parser and suggestion engine never touch these APIs.
+Storage, clipboard and haptics go through one interface, `Platform` in `src/platform/index.ts`. The web implementation is `src/platform/web.ts` (IndexedDB, Clipboard API, `navigator.vibrate`, service worker registration). To wrap the app natively, write another implementation of `Platform` and change the one line in `src/platform/index.ts` that selects it. The editor, parser and suggestion engine never touch these APIs.
 
 - `start`: one-time setup.
 - `load`, `save`: key-value store for JSON-serializable values (keys `text`, `settings`).
 - `copy`: must run synchronously inside a user gesture.
-- `share`: receives the log as .txt and the settings as .json and resolves when the user cancels.
 - `haptic`: light tap, no-op where unsupported.
 
 ## Development

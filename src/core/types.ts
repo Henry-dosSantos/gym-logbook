@@ -34,7 +34,7 @@ export interface Entry {
 export interface LintFlag { line: number; code: LintCode; message: string }
 export interface Doc { text: string; lines: Line[]; entries: Entry[]; year: number | null; flags: LintFlag[] }
 export interface ExerciseSetting { target?: number; increment?: number }
-export interface Settings { aliases: string[][]; exercises: Record<string, ExerciseSetting> } // exercises keyed by exercise key
+export interface Settings { aliases: string[][]; exercises: Record<string, ExerciseSetting>; defaults?: ExerciseSetting } // exercises keyed by exercise key
 export interface Ghost { text: string; kind: 'date' | 'day' | 'name' | 'weight' | 'dash' | 'slash'; space: boolean } // space: Space key accepts it
 export interface StripItem { date: string; sets: string }
 export interface Suggestion { ghost: Ghost | null; strip: StripItem[] }
