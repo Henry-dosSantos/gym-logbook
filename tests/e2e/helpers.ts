@@ -37,9 +37,14 @@ const IDB_READ = (key: string) =>
     req.onerror = () => reject(req.error);
   });
 
+export async function introDone(page: Page): Promise<void> {
+  await page.locator('.intro').waitFor({ state: 'detached', timeout: 3000 });
+}
+
 export async function open(page: Page): Promise<void> {
   await page.goto('./');
   await page.locator('.cm-content').waitFor();
+  await introDone(page);
 }
 
 export async function seed(page: Page, text: string): Promise<void> {
@@ -64,6 +69,7 @@ export async function seed(page: Page, text: string): Promise<void> {
   );
   await page.reload();
   await page.locator('.cm-content').waitFor();
+  await introDone(page);
 }
 
 export const stored = (page: Page): Promise<string | undefined> =>

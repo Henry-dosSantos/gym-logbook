@@ -2,6 +2,8 @@
 
 Dossier (DOSS-ee-ay): a file of records about one subject.
 
+Each launch opens with the D: its two halves glide in from either side and lock together (under a second), then fade away. Taps go straight through to the log, and with Reduce Motion on the finished D shows for a moment instead.
+
 A workout log for the phone. The log is one plain-text document that you type; the app shows suggestions as ghost text and the weights from your last two sessions, and never rewrites what you wrote.
 
 Live: https://henry-dossantos.github.io/gym-logbook/

@@ -8,6 +8,7 @@ import { parsedField } from './editor/state';
 import { platform } from './platform';
 import { createBar } from './ui/bar';
 import { installTapFlash } from './ui/flash';
+import { playIntro } from './ui/intro';
 import { createStrip } from './ui/strip';
 import { trackViewport } from './viewport';
 
@@ -34,6 +35,7 @@ function debounced(save: () => void): { schedule(): void; flush(): void; pending
 }
 
 async function boot(): Promise<void> {
+  playIntro();
   platform.start();
 
   const text = (await platform.load<string>('text').catch(() => undefined)) ?? '';
