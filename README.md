@@ -8,7 +8,7 @@ Live: https://henry-dossantos.github.io/gym-logbook/
 
 1. Open the URL in Safari.
 2. Tap Share, then Add to Home Screen.
-3. Open Logbook from the Home Screen and paste your log into the empty page.
+3. Open Logbook from the Home Screen. Open the menu and tap Paste to load a log you copied (iOS asks you to confirm with its own Paste button), or paste directly into the page.
 
 iOS gives the Home Screen app its own storage, separate from Safari, so paste your log after installing.
 
@@ -65,6 +65,7 @@ Storage, clipboard and haptics go through one interface, `Platform` in `src/plat
 - `start`: one-time setup.
 - `load`, `save`: key-value store for JSON-serializable values (keys `text`, `settings`).
 - `copy`: must run synchronously inside a user gesture.
+- `paste`: reads text from the clipboard; must be called inside a tap; resolves with null if unavailable or declined.
 - `haptic`: light tap, no-op where unsupported.
 
 ## Development

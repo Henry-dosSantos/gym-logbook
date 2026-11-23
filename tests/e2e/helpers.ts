@@ -118,6 +118,10 @@ export async function stubClipboard(page: Page): Promise<void> {
           (window as unknown as { __copied: string }).__copied = t;
           return Promise.resolve();
         },
+        readText: () => {
+          const clip = (window as unknown as { __clip?: string | null }).__clip;
+          return clip === null || clip === undefined ? Promise.reject(new Error('declined')) : Promise.resolve(clip);
+        },
       },
     });
   });
@@ -144,3 +148,8 @@ export async function focusEnd(page: Page): Promise<void> {
   await page.locator('.cm-content').focus();
   await page.keyboard.press('ControlOrMeta+End');
 }
+
+export const setClipboard = (page: Page, text: string | null): Promise<void> =>
+  page.evaluate(t => {
+    (window as unknown as { __clip: string | null }).__clip = t;
+  }, text);

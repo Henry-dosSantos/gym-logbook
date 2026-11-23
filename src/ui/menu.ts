@@ -1,3 +1,4 @@
+import { isolateHistory } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { Ellipsis } from 'lucide';
 import { todayText } from '../core/history';
@@ -77,6 +78,23 @@ function openMenu(ctx: AppContext): void {
     const text = todayText(view.state.field(parsedField), new Date());
     if (text !== null) platform.copy(text);
     sheet.close();
+  });
+  row('paste', 'Paste', () => {
+    void platform.paste().then(text => {
+      if (text) {
+        const at = view.state.selection.main;
+        const insert = view.state.toText(text);
+        view.dispatch({
+          changes: { from: at.from, to: at.to, insert },
+          selection: { anchor: at.from + insert.length },
+          scrollIntoView: true,
+          userEvent: 'input.paste',
+          annotations: isolateHistory.of('full'),
+        });
+        ctx.flushText();
+      }
+      sheet.close();
+    });
   });
   row('lint', 'Lint', () => sheet.setContent('Lint', lintView(ctx, get)), flagCount ? String(flagCount) : undefined);
   row('settings', 'Settings', () => sheet.setContent('Settings', settingsView(ctx), { full: true, flush: true }));

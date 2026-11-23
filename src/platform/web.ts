@@ -73,6 +73,20 @@ export const web: Platform = {
     else pending.catch(() => fallbackCopy(text));
   },
 
+  paste() {
+    let pending: Promise<string> | undefined;
+    try {
+      pending = navigator.clipboard?.readText();
+    } catch {
+      pending = undefined;
+    }
+    if (!pending) return Promise.resolve(null);
+    return pending.then(
+      text => text,
+      () => null,
+    );
+  },
+
   haptic() {
     try {
       navigator.vibrate?.(8);

@@ -5,6 +5,7 @@ export interface Platform {
   load<T>(key: string): Promise<T | undefined>;
   save(key: string, value: unknown): Promise<void>;
   copy(text: string): void;
+  paste(): Promise<string | null>;
   haptic(): void;
 }
 

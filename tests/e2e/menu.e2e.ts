@@ -8,6 +8,7 @@ import {
   openMenu,
   readFixture,
   seed,
+  setClipboard,
   stored,
   strip,
   stubClipboard,
@@ -27,7 +28,7 @@ test.describe('menu and sheet', () => {
     await open(page);
     await openMenu(page);
     await expect(page.locator('.sheet .row')).toHaveText(
-      ['Dashboard', 'Copy all', "Copy today's workout", 'Lint', 'Settings'].map(
+      ['Dashboard', 'Copy all', "Copy today's workout", 'Paste', 'Lint', 'Settings'].map(
         label => new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
       ),
     );
@@ -101,6 +102,61 @@ test.describe('menu and sheet', () => {
     await tapRow(page, 'copy-today');
     await expect(page.locator('.sheet')).toHaveCount(0);
     expect(await copied(page)).toBe('11/23\nPush');
+  });
+
+  test('paste into an empty app', async ({ page }) => {
+    test.skip(!hasFixture, 'fixture not present');
+    const F = readFixture();
+    await open(page);
+    await setClipboard(page, F);
+    await openMenu(page);
+    await tapRow(page, 'paste');
+    await expect(page.locator('.sheet')).toHaveCount(0);
+    await expect.poll(() => stored(page)).toBe(F);
+  });
+
+  test('paste at the cursor and undo', async ({ page }) => {
+    await seed(page, 'abc');
+    await setClipboard(page, 'XYZ');
+    await openMenu(page);
+    await tapRow(page, 'paste');
+    await expect(page.locator('.sheet')).toHaveCount(0);
+    await expect.poll(() => stored(page)).toBe('abcXYZ');
+    await page.locator('.cm-content').focus();
+    await page.keyboard.press('Meta+z');
+    await expect.poll(() => stored(page)).toBe('abc');
+  });
+
+  test('paste normalizes line endings', async ({ page }) => {
+    await open(page);
+    await setClipboard(page, 'A\r\nB');
+    await openMenu(page);
+    await tapRow(page, 'paste');
+    await expect(page.locator('.sheet')).toHaveCount(0);
+    await expect.poll(() => stored(page)).toBe('A\nB');
+  });
+
+  test('declined paste changes nothing', async ({ page }) => {
+    await seed(page, 'abc');
+    await setClipboard(page, null);
+    await openMenu(page);
+    await tapRow(page, 'paste');
+    await expect(page.locator('.sheet')).toHaveCount(0);
+    await page.waitForTimeout(500);
+    expect(await stored(page)).toBe('abc');
+  });
+
+  test('native paste still works', async ({ page }) => {
+    await seed(page, 'abc');
+    await page.locator('.cm-content').focus();
+    await page.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', '123');
+      document
+        .querySelector('.cm-content')!
+        .dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    });
+    await expect.poll(() => stored(page)).toBe('abc123');
   });
 
   test('strip overlay', async ({ page }) => {
